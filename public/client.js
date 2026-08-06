@@ -64,6 +64,15 @@
   const toggleItemsBtn = document.getElementById('toggleItemsBtn');
   const toggleGimmicksBtn = document.getElementById('toggleGimmicksBtn');
   const toggleEffectsBtn = document.getElementById('toggleEffectsBtn');
+  const toggleIceBtn = document.getElementById('toggleIceBtn');
+  const toggleGravityBtn = document.getElementById('toggleGravityBtn');
+  const toggleKnockbackBtn = document.getElementById('toggleKnockbackBtn');
+  const toggleKillcamBtn = document.getElementById('toggleKillcamBtn');
+  const toggleTitlesBtn = document.getElementById('toggleTitlesBtn');
+  const toggleFogBtn = document.getElementById('toggleFogBtn');
+  const themeLockDarkBtn = document.getElementById('themeLockDarkBtn');
+  const themeLockLightBtn = document.getElementById('themeLockLightBtn');
+  const themeLockFreeBtn = document.getElementById('themeLockFreeBtn');
 
   // 管理者チート機能(全体)関連の要素
   const cheatGodModeAllBtn = document.getElementById('cheatGodModeAllBtn');
@@ -114,6 +123,7 @@
   const registerMsg = document.getElementById('registerMsg');
   const switchToLoginLink = document.getElementById('switchToLoginLink');
   const streakBanner = document.getElementById('streakBanner');
+  const killCamLabel = document.getElementById('killCamLabel');
   const winnerBanner = document.getElementById('winnerBanner');
   const winnerName = document.getElementById('winnerName');
   const minimapCanvas = document.getElementById('minimapCanvas');
@@ -126,6 +136,8 @@
   const settingsCloseBtn = document.getElementById('settingsCloseBtn');
   const settingWasdBtn = document.getElementById('settingWasdBtn');
   const settingWasdOnlyBtn = document.getElementById('settingWasdOnlyBtn');
+  const settingThemeBtn = document.getElementById('settingThemeBtn');
+  const themeSettingDesc = document.getElementById('themeSettingDesc');
   const settingSoundBtn = document.getElementById('settingSoundBtn');
   const settingShakeBtn = document.getElementById('settingShakeBtn');
   const settingParticlesBtn = document.getElementById('settingParticlesBtn');
@@ -680,7 +692,8 @@
     shakeEnabled: true,
     particlesEnabled: true,
     minimapEnabled: true,
-    feedEnabled: true
+    feedEnabled: true,
+    themeMode: 'dark' // 'dark' | 'light'
   };
   function loadSettings() {
     try {
@@ -708,6 +721,21 @@
     setToggleBtnState(settingParticlesBtn, settings.particlesEnabled);
     setToggleBtnState(settingMinimapBtn, settings.minimapEnabled);
     setToggleBtnState(settingFeedBtn, settings.feedEnabled);
+    setToggleBtnState(settingThemeBtn, settings.themeMode === 'light');
+  }
+  // テーマ(ダーク/ライト)を実際に画面へ反映する。管理者が全体固定している場合はそちらを優先する。
+  // (起動直後の同期呼び出しではlatestStateがまだ未初期化のためTDZエラーになるので、
+  //  この関数自体は必ずsetTimeoutやイベントハンドラ経由の非同期呼び出しからのみ使うこと)
+  function applyTheme() {
+    const forced = latestState && latestState.themeLock;
+    const mode = forced || settings.themeMode;
+    document.body.classList.toggle('theme-light', mode === 'light');
+    if (settingThemeBtn) settingThemeBtn.disabled = !!forced;
+    if (themeSettingDesc) {
+      themeSettingDesc.textContent = forced
+        ? `管理者が全員のテーマを「${forced === 'light' ? 'ライト' : 'ダーク'}」に固定しています`
+        : '画面全体を明るい配色にする';
+    }
   }
   function bindSettingToggle(btn, key) {
     btn.addEventListener('click', () => {
@@ -740,8 +768,18 @@
   bindSettingToggle(settingParticlesBtn, 'particlesEnabled');
   bindSettingToggle(settingMinimapBtn, 'minimapEnabled');
   bindSettingToggle(settingFeedBtn, 'feedEnabled');
+  if (settingThemeBtn) {
+    settingThemeBtn.addEventListener('click', () => {
+      if (latestState && latestState.themeLock) return; // 管理者固定中は変更不可
+      settings.themeMode = settings.themeMode === 'light' ? 'dark' : 'light';
+      saveSettings();
+      refreshSettingsButtons();
+      applyTheme();
+    });
+  }
   refreshSettingsButtons();
   if (!settings.minimapEnabled) minimapCanvas.classList.add('hidden');
+  setTimeout(applyTheme, 0); // latestState初期化後に反映(TDZ回避)
 
   // ========================================================
   // ===== 隠し要素(このゲームにはまだ秘密があるらしい…) =====
@@ -1150,6 +1188,9 @@
   let joined = false;
   let spectating = false;
   let spectateTargetId = null; // 観戦中に手動で選んだ相手のID(nullなら1位を自動追尾)
+  const KILLCAM_DURATION_MS = 900;
+  let killCamTargetId = null; // キルカム中、一時的に映す相手のID
+  let killCamUntil = 0;
   let isAdmin = false;
   let lastAdminListRender = 0;
   let lastSpectateSelectRender = 0;
@@ -1222,6 +1263,8 @@
       diedThisRound = false;
     }
     if (state.round) lastRoundStateSeen = state.round.state;
+
+    applyTheme(); // 管理者のテーマ固定が変わった場合に追従する(軽い処理なので毎フレーム呼んでも問題ない)
 
     // 観戦対象の選択肢も同様に1秒間隔で更新(操作中は上書きしない)
     if (spectating) {
@@ -1314,8 +1357,6 @@
   }
 
   socket.on('eaten', (data) => {
-    deathText.textContent = `${data.by} に飲み込まれました…`;
-    deathMsg.classList.remove('hidden');
     if (latestState.effectsEnabled) {
       triggerShake(28, 600);
       triggerFlash('#ff2244', 650, 0.48);
@@ -1327,6 +1368,24 @@
       spawnFloatingText(lastMyPos.x, lastMyPos.y, 'K.O.', '#ff4455', 30);
     }
     registerDeath();
+
+    const doKillCam = latestState.killcamEnabled !== false && data.byId
+      && typeof data.byX === 'number' && typeof data.byY === 'number';
+    if (doKillCam) {
+      // キルカム: 死亡モーダルの前に一瞬だけ相手側の視点を映す
+      killCamTargetId = data.byId;
+      killCamUntil = Date.now() + KILLCAM_DURATION_MS;
+      killCamLabel.textContent = `😈 ${data.by} にやられた`;
+      killCamLabel.classList.remove('hidden');
+      setTimeout(() => {
+        killCamLabel.classList.add('hidden');
+        deathText.textContent = `${data.by} に飲み込まれました…`;
+        deathMsg.classList.remove('hidden');
+      }, KILLCAM_DURATION_MS);
+    } else {
+      deathText.textContent = `${data.by} に飲み込まれました…`;
+      deathMsg.classList.remove('hidden');
+    }
   });
 
   socket.on('warped', () => {
@@ -1948,6 +2007,12 @@
     setToggleBtn(toggleItemsBtn, latestState.itemsEnabled, 'アイテム');
     setToggleBtn(toggleGimmicksBtn, latestState.gimmicksEnabled, 'ギミック');
     setToggleBtn(toggleEffectsBtn, latestState.effectsEnabled, '演出/効果音');
+    setToggleBtn(toggleIceBtn, latestState.iceEnabled, '🧊氷ゾーン');
+    setToggleBtn(toggleGravityBtn, latestState.gravityEnabled, '🌀重力井戸');
+    setToggleBtn(toggleKnockbackBtn, latestState.knockbackEnabled, '💥ノックバック');
+    setToggleBtn(toggleKillcamBtn, latestState.killcamEnabled, '😈キルカム');
+    setToggleBtn(toggleTitlesBtn, latestState.titlesEnabled, '🏅称号表示');
+    setToggleBtn(toggleFogBtn, latestState.fogEnabled, '🌫️霧演出');
     if (cheatSpeedStatus) {
       const m = typeof latestState.globalSpeedMultiplier === 'number' ? latestState.globalSpeedMultiplier : 1;
       cheatSpeedStatus.textContent = `現在の速度倍率: ${m.toFixed(1)}倍`;
@@ -1973,6 +2038,33 @@
   toggleEffectsBtn.addEventListener('click', () => {
     socket.emit('admin:setEffectsEnabled', { enabled: !latestState.effectsEnabled });
   });
+  if (toggleIceBtn) {
+    toggleIceBtn.addEventListener('click', () => socket.emit('admin:setIceEnabled', { enabled: !latestState.iceEnabled }));
+  }
+  if (toggleGravityBtn) {
+    toggleGravityBtn.addEventListener('click', () => socket.emit('admin:setGravityEnabled', { enabled: !latestState.gravityEnabled }));
+  }
+  if (toggleKnockbackBtn) {
+    toggleKnockbackBtn.addEventListener('click', () => socket.emit('admin:setKnockbackEnabled', { enabled: !latestState.knockbackEnabled }));
+  }
+  if (toggleKillcamBtn) {
+    toggleKillcamBtn.addEventListener('click', () => socket.emit('admin:setKillcamEnabled', { enabled: !latestState.killcamEnabled }));
+  }
+  if (toggleTitlesBtn) {
+    toggleTitlesBtn.addEventListener('click', () => socket.emit('admin:setTitlesEnabled', { enabled: !latestState.titlesEnabled }));
+  }
+  if (toggleFogBtn) {
+    toggleFogBtn.addEventListener('click', () => socket.emit('admin:setFogEnabled', { enabled: !latestState.fogEnabled }));
+  }
+  if (themeLockDarkBtn) {
+    themeLockDarkBtn.addEventListener('click', () => socket.emit('admin:setThemeLock', { mode: 'dark' }));
+  }
+  if (themeLockLightBtn) {
+    themeLockLightBtn.addEventListener('click', () => socket.emit('admin:setThemeLock', { mode: 'light' }));
+  }
+  if (themeLockFreeBtn) {
+    themeLockFreeBtn.addEventListener('click', () => socket.emit('admin:setThemeLock', { mode: null }));
+  }
 
   // ===== チート機能(全体) =====
   if (cheatGodModeAllBtn) {
@@ -2404,7 +2496,10 @@
     if (!joined) return;
 
     const me = getMe();
-    const camSource = me || (spectating ? getSpectateCameraTarget() : null);
+    // キルカム中は、自分が倒された瞬間だけ一時的に相手(倒した側)の視点へカメラを切り替える
+    const killCamActive = killCamTargetId && Date.now() < killCamUntil;
+    const killCamPlayer = killCamActive ? latestState.players.find(p => p.id === killCamTargetId) : null;
+    const camSource = killCamPlayer || me || (spectating ? getSpectateCameraTarget() : null);
     const camX = camSource ? camSource.x : worldSize / 2;
     const camY = camSource ? camSource.y : worldSize / 2;
 
@@ -2502,6 +2597,36 @@
         ctx.strokeStyle = '#33ccff';
         ctx.lineWidth = 3;
         ctx.stroke();
+      }
+      // 氷ゾーン(滑る)
+      for (const iz of latestState.iceZones || []) {
+        const x = toX(iz.x), y = toY(iz.y), r = iz.r * zoom;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(140,220,255,0.14)';
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(180,235,255,0.55)';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([2, 10]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      // 重力井戸(渦を巻くリングで表現)
+      for (const gw of latestState.gravityWells || []) {
+        const x = toX(gw.x), y = toY(gw.y), r = gw.r * zoom;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(150,80,255,0.07)';
+        ctx.fill();
+        const spin = nowMs / 700;
+        for (let ring = 0; ring < 3; ring++) {
+          const ringR = r * (0.35 + ring * 0.28);
+          ctx.beginPath();
+          ctx.arc(x, y, ringR, spin + ring, spin + ring + Math.PI * 1.4);
+          ctx.strokeStyle = `rgba(180,100,255,${0.45 - ring * 0.1})`;
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+        }
       }
     }
 
@@ -2950,6 +3075,19 @@
       ctx.globalAlpha = 1;
     }
 
+    // ===== 視界を遮る霧演出(管理者が有効化した場合のみ) =====
+    if (latestState.fogEnabled && camSource) {
+      const fogRadius = Math.min(canvas.width, canvas.height) * 0.55;
+      const grad = ctx.createRadialGradient(
+        canvas.width / 2, canvas.height / 2, fogRadius * 0.22,
+        canvas.width / 2, canvas.height / 2, fogRadius
+      );
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(1, 'rgba(0,0,0,0.93)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
     // HUD更新
     if (me) {
       scoreVal.textContent = me.mass;
@@ -2987,6 +3125,32 @@
         minimapCtx.arc(toMiniX(ob.x), toMiniY(ob.y), Math.max(1.5, ob.r * scale), 0, Math.PI * 2);
         minimapCtx.fill();
       }
+      minimapCtx.fillStyle = 'rgba(255,80,40,0.4)';
+      for (const hz of latestState.hazardZones || []) {
+        minimapCtx.beginPath();
+        minimapCtx.arc(toMiniX(hz.x), toMiniY(hz.y), Math.max(1.5, hz.r * scale), 0, Math.PI * 2);
+        minimapCtx.fill();
+      }
+      minimapCtx.fillStyle = 'rgba(140,220,255,0.35)';
+      for (const iz of latestState.iceZones || []) {
+        minimapCtx.beginPath();
+        minimapCtx.arc(toMiniX(iz.x), toMiniY(iz.y), Math.max(1.5, iz.r * scale), 0, Math.PI * 2);
+        minimapCtx.fill();
+      }
+      minimapCtx.fillStyle = 'rgba(180,100,255,0.35)';
+      for (const gw of latestState.gravityWells || []) {
+        minimapCtx.beginPath();
+        minimapCtx.arc(toMiniX(gw.x), toMiniY(gw.y), Math.max(1.5, gw.r * scale), 0, Math.PI * 2);
+        minimapCtx.fill();
+      }
+    }
+    // バトルロイヤルの安全地帯
+    if (latestState.storm) {
+      minimapCtx.strokeStyle = 'rgba(255,60,60,0.8)';
+      minimapCtx.lineWidth = 1.5;
+      minimapCtx.beginPath();
+      minimapCtx.arc(toMiniX(latestState.storm.x), toMiniY(latestState.storm.y), Math.max(2, latestState.storm.r * scale), 0, Math.PI * 2);
+      minimapCtx.stroke();
     }
 
     // ゴールデンフード
@@ -3012,6 +3176,23 @@
     minimapCtx.strokeRect(0, 0, size, size);
   }
 
+  // 現在のスコアに応じた称号(サーバーが把握できる値=スコアを基準にすることで、
+  // 誰のスコアにも公平に表示できるようにしている)
+  const TITLE_TIERS = [
+    { min: 10000, icon: '🔥', label: '神話' },
+    { min: 5000, icon: '🌟', label: '伝説' },
+    { min: 2000, icon: '👑', label: '覇者' },
+    { min: 1000, icon: '💪', label: '猛者' },
+    { min: 500, icon: '⚔️', label: '戦士' },
+    { min: 100, icon: '🌱', label: '見習い' }
+  ];
+  function getTitleForMass(mass) {
+    for (const t of TITLE_TIERS) {
+      if (mass >= t.min) return t;
+    }
+    return null;
+  }
+
   function updateLeaderboard() {
     const isKoth = latestState.gameMode === 'koth';
     const scoreOf = (p) => (isKoth ? (p.hillScore || 0) : p.mass);
@@ -3024,7 +3205,9 @@
       const tag = p.isBot ? '🤖' : (p.accountUsername ? '🔑' : '');
       const teamTag = (latestState.gameMode === 'team' && p.team) ? (p.team === 'red' ? '🔴' : '🔵') : '';
       const infectedTag = (latestState.gameMode === 'infection' && p.infected) ? '🧟' : '';
-      html += `<li${cls}>${teamTag}${infectedTag}${tag}${escapeHtml(p.name)} - ${Math.round(scoreOf(p))}</li>`;
+      const title = (latestState.titlesEnabled && !isKoth) ? getTitleForMass(p.mass) : null;
+      const titleTag = title ? `<span class="title-tag" title="${title.label}">${title.icon}</span>` : '';
+      html += `<li${cls}>${teamTag}${infectedTag}${tag}${titleTag}${escapeHtml(p.name)} - ${Math.round(scoreOf(p))}</li>`;
     }
     html += '</ol>';
     leaderboard.innerHTML = html;

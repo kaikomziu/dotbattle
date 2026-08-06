@@ -15,6 +15,12 @@ html, body {
   color: #eef2f7;
 }
 
+/* ===== ライトテーマ(色反転による簡易実装。ゲーム画面ごと明るい配色に切り替わる) ===== */
+body.theme-light {
+  filter: invert(0.92) hue-rotate(180deg);
+  transition: filter 0.25s ease;
+}
+
 .hidden {
   display: none !important;
 }
@@ -463,6 +469,29 @@ html, body {
   55% { opacity: 1; transform: translateX(-50%) scale(1.25) rotate(2deg); }
   75% { transform: translateX(-50%) scale(0.95) rotate(-1deg); }
   100% { opacity: 1; transform: translateX(-50%) scale(1) rotate(0deg); }
+}
+
+/* ===== キルカム(倒された瞬間、相手の名前を一瞬映す) ===== */
+#killCamLabel {
+  position: absolute;
+  top: 18%;
+  left: 50%;
+  transform: translate(-50%, 0);
+  z-index: 96;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid rgba(255,80,80,0.5);
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-size: 16px;
+  font-weight: bold;
+  color: #ff8899;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: killCamPop 0.35s ease;
+}
+@keyframes killCamPop {
+  0% { opacity: 0; transform: translate(-50%, -10px) scale(0.85); }
+  100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
 }
 
 /* ===== ラウンド優勝バナー ===== */

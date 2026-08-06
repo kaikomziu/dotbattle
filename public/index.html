@@ -79,6 +79,14 @@
           <button id="settingFeedBtn" class="toggle-btn">ON</button>
         </div>
 
+        <div class="settings-row">
+          <div class="settings-label">
+            <div class="settings-title">🌗 ライトテーマ</div>
+            <div class="settings-desc" id="themeSettingDesc">画面全体を明るい配色にする(管理者が固定している場合は変更できません)</div>
+          </div>
+          <button id="settingThemeBtn" class="toggle-btn">OFF</button>
+        </div>
+
         <h4 style="margin-top:16px;">🔑 アカウント設定</h4>
 
         <div id="accountSettingsLoggedIn" class="hidden">
@@ -316,6 +324,9 @@
     <!-- キルストリーク実況バナー -->
     <div id="streakBanner" class="hidden"></div>
 
+    <!-- キルカム: 倒された瞬間、相手の名前を一瞬映す -->
+    <div id="killCamLabel" class="hidden"></div>
+
     <!-- ラウンド優勝バナー -->
     <div id="winnerBanner" class="hidden">
       <div class="winner-title">🏆 WINNER 🏆</div>
@@ -431,6 +442,26 @@
         </div>
         <div class="admin-row">
           <button id="toggleEffectsBtn" class="toggle-btn">演出/効果音: -</button>
+        </div>
+        <div class="admin-row">
+          <button id="toggleIceBtn" class="toggle-btn">🧊氷ゾーン: -</button>
+          <button id="toggleGravityBtn" class="toggle-btn">🌀重力井戸: -</button>
+        </div>
+        <div class="admin-row">
+          <button id="toggleKnockbackBtn" class="toggle-btn">💥ノックバック: -</button>
+          <button id="toggleKillcamBtn" class="toggle-btn">😈キルカム: -</button>
+        </div>
+        <div class="admin-row">
+          <button id="toggleTitlesBtn" class="toggle-btn">🏅称号表示: -</button>
+          <button id="toggleFogBtn" class="toggle-btn">🌫️霧演出: -</button>
+        </div>
+        <p class="admin-note">🌗 テーマ固定(全員のライト/ダークを管理者が強制する)</p>
+        <div class="admin-row">
+          <button id="themeLockDarkBtn">🌙ダーク固定</button>
+          <button id="themeLockLightBtn">☀️ライト固定</button>
+        </div>
+        <div class="admin-row">
+          <button id="themeLockFreeBtn">🔓各自の設定に任せる</button>
         </div>
       </div>
 

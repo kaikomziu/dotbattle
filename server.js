@@ -262,6 +262,13 @@ const TEAM_IDS = ['red', 'blue'];
 let itemsEnabled = true;     // ランダムアイテム
 let gimmicksEnabled = true;  // マップギミック(障害物/危険地帯/ワープ)
 let effectsEnabled = true;   // 演出(パーティクル・画面揺れ・効果音)。キルフィードは常時表示
+let iceEnabled = true;       // 氷ゾーン(滑る)
+let gravityEnabled = true;   // 重力井戸(弱く引き寄せられる)
+let knockbackEnabled = true; // パワーアップ中の体当たりで相手を弾き飛ばす
+let killcamEnabled = true;   // 倒された時、一瞬相手の視点を映すキルカム
+let titlesEnabled = true;    // 実績数に応じた称号表示
+let fogEnabled = false;      // 視界の外を暗くする霧演出(デフォルトOFF、管理者が任意で有効化)
+let themeLock = null;        // null=各自の設定に任せる / 'dark' / 'light' = 全員そのテーマに固定
 
 // ===== 管理者チート機能用のグローバル状態 =====
 let globalSpeedMultiplier = 1;   // 全員の移動速度倍率(管理者チート、0.3〜3倍)
@@ -385,10 +392,15 @@ const ITEM_LABELS = {
 };
 
 // ===== マップギミック =====
+let iceZones = [];     // { id, x, y, r } 踏むと滑る(慣性が強くなる)
+let gravityWells = []; // { id, x, y, r, strength } 弱く中心へ引き寄せられる
+
 function regenerateGimmicks() {
   obstacles = [];
   hazardZones = [];
   warpHoles = [];
+  iceZones = [];
+  gravityWells = [];
   if (!gimmicksEnabled) return;
 
   for (let i = 0; i < 5; i++) {
@@ -410,6 +422,28 @@ function regenerateGimmicks() {
   const wa = { id: 'warpA', pairId: 'warpB', x: rand(200, WORLD_SIZE - 200), y: rand(200, WORLD_SIZE - 200) };
   const wb = { id: 'warpB', pairId: 'warpA', x: rand(200, WORLD_SIZE - 200), y: rand(200, WORLD_SIZE - 200) };
   warpHoles = [wa, wb];
+
+  if (iceEnabled) {
+    for (let i = 0; i < 2; i++) {
+      iceZones.push({
+        id: 'ice' + i,
+        x: rand(300, WORLD_SIZE - 300),
+        y: rand(300, WORLD_SIZE - 300),
+        r: rand(180, 280)
+      });
+    }
+  }
+  if (gravityEnabled) {
+    for (let i = 0; i < 1; i++) {
+      gravityWells.push({
+        id: 'grav' + i,
+        x: rand(400, WORLD_SIZE - 400),
+        y: rand(400, WORLD_SIZE - 400),
+        r: rand(220, 320),
+        strength: rand(40, 70)
+      });
+    }
+  }
 }
 regenerateGimmicks();
 
@@ -460,6 +494,8 @@ class Player {
     this.lastEmoteAt = 0;        // 絵文字タウントの連投防止
     this.noclip = false;         // 管理者チート: 障害物をすり抜ける
     this.infiniteBoost = false;  // 管理者チート: パワーアップのコスト・クールダウン無視
+    this.velX = 0;                // 実際の移動速度(氷ゾーンでの慣性計算用)
+    this.velY = 0;
   }
 
   get radius() {
@@ -1197,6 +1233,44 @@ io.on('connection', (socket) => {
     effectsEnabled = !!(data && data.enabled);
   });
 
+  socket.on('admin:setIceEnabled', (data) => {
+    if (!isAdmin(socket)) return;
+    iceEnabled = !!(data && data.enabled);
+    regenerateGimmicks();
+  });
+
+  socket.on('admin:setGravityEnabled', (data) => {
+    if (!isAdmin(socket)) return;
+    gravityEnabled = !!(data && data.enabled);
+    regenerateGimmicks();
+  });
+
+  socket.on('admin:setKnockbackEnabled', (data) => {
+    if (!isAdmin(socket)) return;
+    knockbackEnabled = !!(data && data.enabled);
+  });
+
+  socket.on('admin:setKillcamEnabled', (data) => {
+    if (!isAdmin(socket)) return;
+    killcamEnabled = !!(data && data.enabled);
+  });
+
+  socket.on('admin:setTitlesEnabled', (data) => {
+    if (!isAdmin(socket)) return;
+    titlesEnabled = !!(data && data.enabled);
+  });
+
+  socket.on('admin:setFogEnabled', (data) => {
+    if (!isAdmin(socket)) return;
+    fogEnabled = !!(data && data.enabled);
+  });
+
+  socket.on('admin:setThemeLock', (data) => {
+    if (!isAdmin(socket)) return;
+    const mode = data && data.mode;
+    themeLock = (mode === 'dark' || mode === 'light') ? mode : null;
+  });
+
   // ===== ラウンド管理 =====
   socket.on('admin:startRound', (data) => {
     if (!isAdmin(socket)) return;
@@ -1415,15 +1489,28 @@ setInterval(() => {
   const desiredWorldSize = worldSizeOverride !== null ? worldSizeOverride : computeDesiredWorldSize();
   WORLD_SIZE += (desiredWorldSize - WORLD_SIZE) * 0.01;
 
-  // プレイヤー移動
+  // プレイヤー移動(氷ゾーンの上では慣性が強くなり滑るようになる)
   for (const p of players.values()) {
     if (!p.alive) continue;
     if (p.frozen) continue; // 管理者に凍結されている場合は動かない
     const infectedSpeedBonus = (gameMode === 'infection' && p.infected) ? 1.15 : 1;
     const boostMultiplier = now < p.boostUntil ? BOOST_SPEED_MULTIPLIER : 1;
     const speed = Math.max(MAX_SPEED * (BASE_RADIUS / p.radius), 60) * boostMultiplier * infectedSpeedBonus * globalSpeedMultiplier;
-    p.x += p.dirX * speed * dt;
-    p.y += p.dirY * speed * dt;
+    const targetVelX = p.dirX * speed;
+    const targetVelY = p.dirY * speed;
+    const onIce = gimmicksEnabled && iceEnabled && !p.noclip
+      && iceZones.some(z => Math.hypot(p.x - z.x, p.y - z.y) < z.r);
+    if (onIce) {
+      const ease = 1 - Math.pow(0.002, dt); // dtに関わらず一定の滑らかさになる指数補間
+      p.velX += (targetVelX - p.velX) * ease;
+      p.velY += (targetVelY - p.velY) * ease;
+    } else {
+      // 通常時は即座に目標速度へ(従来通りの操作感を維持)
+      p.velX = targetVelX;
+      p.velY = targetVelY;
+    }
+    p.x += p.velX * dt;
+    p.y += p.velY * dt;
     p.x = Math.max(p.radius, Math.min(WORLD_SIZE - p.radius, p.x));
     p.y = Math.max(p.radius, Math.min(WORLD_SIZE - p.radius, p.y));
   }
@@ -1452,6 +1539,20 @@ setInterval(() => {
         if (d < hz.r) {
           p.mass = Math.max(0, p.mass - 8 * dt);
         }
+      }
+      // 重力井戸: 範囲内にいる間、弱く中心へ引き寄せられる
+      if (gravityEnabled) {
+        for (const gw of gravityWells) {
+          const dx = gw.x - p.x, dy = gw.y - p.y;
+          const d = Math.hypot(dx, dy);
+          if (d < gw.r && d > 1) {
+            const pull = gw.strength * dt;
+            p.x += (dx / d) * pull;
+            p.y += (dy / d) * pull;
+          }
+        }
+        p.x = Math.max(p.radius, Math.min(WORLD_SIZE - p.radius, p.x));
+        p.y = Math.max(p.radius, Math.min(WORLD_SIZE - p.radius, p.y));
       }
       // ワープホール
       if (now > p.warpCooldownUntil) {
@@ -1621,7 +1722,7 @@ setInterval(() => {
         globalStats.totalKills += 1;
         globalStats.totalDeaths += 1;
         saveGlobalStats();
-        io.to(b.id).emit('eaten', { by: a.name });
+        io.to(b.id).emit('eaten', { by: a.name, byId: a.id, byX: a.x, byY: a.y });
         io.emit('feedEvent', {
           kind: 'kill',
           text: `${a.name} が ${b.name} を飲み込んだ! (+${Math.round(b.mass)})`,
@@ -1649,6 +1750,34 @@ setInterval(() => {
             b.respawn();
           }
         }, 800);
+      }
+    }
+  }
+
+  // ===== ノックバック: パワーアップ中に体当たりすると相手を弾き飛ばす =====
+  if (knockbackEnabled) {
+    const aliveList = Array.from(players.values()).filter(p => p.alive);
+    for (let i = 0; i < aliveList.length; i++) {
+      for (let j = i + 1; j < aliveList.length; j++) {
+        const a = aliveList[i], b = aliveList[j];
+        if (a.noclip || b.noclip) continue;
+        if (gameMode === 'team' && a.team && a.team === b.team) continue;
+        const aBoosted = now < a.boostUntil;
+        const bBoosted = now < b.boostUntil;
+        if (!aBoosted && !bBoosted) continue;
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const d = Math.hypot(dx, dy);
+        const minDist = a.radius + b.radius;
+        if (d < minDist && d > 0.001) {
+          const push = (minDist - d) * 0.5;
+          const nx = dx / d, ny = dy / d;
+          const aPush = bBoosted ? push * 1.4 : push * 0.6;
+          const bPush = aBoosted ? push * 1.4 : push * 0.6;
+          a.x = Math.max(a.radius, Math.min(WORLD_SIZE - a.radius, a.x - nx * aPush));
+          a.y = Math.max(a.radius, Math.min(WORLD_SIZE - a.radius, a.y - ny * aPush));
+          b.x = Math.max(b.radius, Math.min(WORLD_SIZE - b.radius, b.x + nx * bPush));
+          b.y = Math.max(b.radius, Math.min(WORLD_SIZE - b.radius, b.y + ny * bPush));
+        }
       }
     }
   }
@@ -1706,9 +1835,18 @@ setInterval(() => {
     itemsEnabled,
     gimmicksEnabled,
     effectsEnabled,
+    iceEnabled,
+    gravityEnabled,
+    knockbackEnabled,
+    killcamEnabled,
+    titlesEnabled,
+    fogEnabled,
+    themeLock,
     obstacles,
     hazardZones,
     warpHoles,
+    iceZones,
+    gravityWells,
     kothHill,
     storm,
     goldenFood: goldenFood ? { x: goldenFood.x, y: goldenFood.y } : null,
