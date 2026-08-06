@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🎬 クレジット - ドットバトル</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: #05070d;
+    color: #eef2f7;
+    font-family: 'Segoe UI', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+    overflow-x: hidden;
+    position: relative;
+  }
+  .stars {
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 20% 30%, #fff, transparent),
+      radial-gradient(1px 1px at 60% 70%, #fff, transparent),
+      radial-gradient(1px 1px at 80% 20%, #fff, transparent),
+      radial-gradient(1px 1px at 40% 80%, #fff, transparent),
+      radial-gradient(2px 2px at 90% 50%, #fff, transparent),
+      radial-gradient(1px 1px at 10% 60%, #fff, transparent);
+    background-size: 100% 100%;
+    opacity: 0.5;
+    animation: twinkle 3s infinite alternate;
+  }
+  @keyframes twinkle { from { opacity: 0.3; } to { opacity: 0.7; } }
+  .roll {
+    position: relative;
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 60px 24px 400px;
+    text-align: center;
+  }
+  h1 {
+    font-size: 30px;
+    background: linear-gradient(90deg, #ffcc33, #ff5566, #33ccff, #66ff99);
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: shine 4s linear infinite;
+    margin-bottom: 6px;
+  }
+  @keyframes shine { to { background-position: 300% 0; } }
+  .sub { color: #7c8aa3; font-size: 13px; margin-bottom: 50px; }
+  .role {
+    margin: 34px 0;
+  }
+  .role .job { font-size: 11px; letter-spacing: 2px; color: #ffcc33; margin-bottom: 6px; }
+  .role .who { font-size: 18px; font-weight: bold; }
+  .role .joke { font-size: 12px; color: #7c8aa3; margin-top: 4px; }
+  .back {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #ff5566, #ff8833);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 999px;
+    font-weight: bold;
+    font-size: 14px;
+  }
+  .fixed-back {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+  }
+</style>
+</head>
+<body>
+  <div class="stars"></div>
+  <div class="roll">
+    <h1>🔴 ドットバトル</h1>
+    <p class="sub">— STAFF ROLL —</p>
+
+    <div class="role">
+      <div class="job">GAME DESIGN & すべて</div>
+      <div class="who">あなた と Claude</div>
+      <div class="joke">「もっと面白く」の一言から始まった</div>
+    </div>
+
+    <div class="role">
+      <div class="job">チーフ・エサ配置責任者</div>
+      <div class="who">Math.random()</div>
+      <div class="joke">220個のエサを毎ティック真剣に配っています</div>
+    </div>
+
+    <div class="role">
+      <div class="job">BOT AI アドバイザー</div>
+      <div class="who">名もなきBOTたち</div>
+      <div class="joke">壁に負けじと今日も回避行動を頑張っています</div>
+    </div>
+
+    <div class="role">
+      <div class="job">ゴールデンフード監修</div>
+      <div class="who">運の女神</div>
+      <div class="joke">40〜80秒に1回、気まぐれに降臨</div>
+    </div>
+
+    <div class="role">
+      <div class="job">サウンドプロデューサー</div>
+      <div class="who">Web Audio API</div>
+      <div class="joke">外部音源ファイル一切不使用、全て自前合成</div>
+    </div>
+
+    <div class="role">
+      <div class="job">セキュリティ顧問</div>
+      <div class="who">bcryptjs</div>
+      <div class="joke">パスワードは10ラウンドかけて丁寧にハッシュ化中</div>
+    </div>
+
+    <div class="role">
+      <div class="job">インフラ担当</div>
+      <div class="who">Render (無料プラン)</div>
+      <div class="joke">たまに寝ます、起こしてあげてください</div>
+    </div>
+
+    <div class="role">
+      <div class="job">SPECIAL THANKS</div>
+      <div class="who">このページを見つけたあなた</div>
+      <div class="joke">隠しページ探索、お疲れさまでした🎉</div>
+    </div>
+
+    <a href="/" class="back">🎮 ゲームに戻る</a>
+  </div>
+
+  <script>
+    try { localStorage.setItem('dotbattle_visited_credits', '1'); } catch (e) {}
+  </script>
+</body>
+</html>

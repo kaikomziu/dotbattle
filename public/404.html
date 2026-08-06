@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🤖 迷子です - ドットバトル</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(circle at 50% 40%, #1c2740 0%, #05070d 75%);
+    color: #eef2f7;
+    font-family: 'Segoe UI', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+  }
+  .bot {
+    font-size: 72px;
+    animation: wander 3s ease-in-out infinite;
+    display: inline-block;
+  }
+  @keyframes wander {
+    0%, 100% { transform: translateX(-20px) rotate(-8deg); }
+    50% { transform: translateX(20px) rotate(8deg); }
+  }
+  h1 { font-size: 54px; margin: 16px 0 8px; color: #ff5566; }
+  p { color: #a9b4c6; font-size: 14px; margin-bottom: 6px; }
+  .flavor { font-size: 12px; color: #7c8aa3; margin-bottom: 28px; }
+  a {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 12px 28px;
+    background: linear-gradient(135deg, #33ccff, #3399ff);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 999px;
+    font-weight: bold;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+  <div>
+    <div class="bot">🤖</div>
+    <h1>404</h1>
+    <p>迷子のBOTが、存在しないページを彷徨っています…</p>
+    <p class="flavor">(このBOTもきっと壁の回避判定でぶつかっています)</p>
+    <a href="/">🎮 安全なゲーム画面に戻る</a>
+  </div>
+</body>
+</html>

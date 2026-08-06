@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>📊 サーバー統計 - ドットバトル</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(circle at 50% 20%, #1c2740 0%, #0a0e18 70%);
+    color: #eef2f7;
+    font-family: 'Segoe UI', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    width: 100%;
+    max-width: 480px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 18px;
+    padding: 32px 26px;
+    backdrop-filter: blur(6px);
+  }
+  h1 {
+    text-align: center;
+    font-size: 24px;
+    margin-bottom: 4px;
+    background: linear-gradient(90deg, #33ccff, #66ff99);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .sub {
+    text-align: center;
+    font-size: 12px;
+    color: #7c8aa3;
+    margin-bottom: 24px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .stat {
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 14px;
+    text-align: center;
+  }
+  .stat .num {
+    font-size: 24px;
+    font-weight: 900;
+    color: #ffcc33;
+  }
+  .stat .label {
+    font-size: 11px;
+    color: #a9b4c6;
+    margin-top: 4px;
+  }
+  .record {
+    background: linear-gradient(135deg, rgba(255,204,51,0.15), rgba(255,153,51,0.08));
+    border: 1px solid rgba(255,204,51,0.3);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .record .title { font-size: 12px; color: #ffcc33; margin-bottom: 6px; }
+  .record .name { font-size: 20px; font-weight: bold; }
+  .record .mass { font-size: 13px; color: #a9b4c6; margin-top: 4px; }
+  .live {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #a9b4c6;
+    padding: 6px 0;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  .persistent-badge {
+    display: inline-block;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    margin-top: 10px;
+  }
+  .persistent-badge.on { background: rgba(102,255,153,0.15); color: #66ff99; }
+  .persistent-badge.off { background: rgba(255,170,51,0.15); color: #ffaa33; }
+  .back {
+    display: block;
+    text-align: center;
+    margin-top: 22px;
+    color: #33ccff;
+    text-decoration: none;
+    font-size: 13px;
+  }
+  .loading { text-align: center; color: #7c8aa3; padding: 40px 0; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>📊 サーバー統計</h1>
+    <p class="sub">これまでの全プレイヤーの累計記録</p>
+    <div id="content" class="loading">読み込み中...</div>
+    <a href="/" class="back">🎮 ゲームに戻る</a>
+  </div>
+
+  <script>
+    try { localStorage.setItem('dotbattle_visited_stats', '1'); } catch (e) {}
+
+    fetch('/api/stats').then(r => r.json()).then(s => {
+      const uptimeMs = Date.now() - s.serverBootAt;
+      const uptimeMin = Math.floor(uptimeMs / 60000);
+      const uptimeStr = uptimeMin < 60 ? `${uptimeMin}分` : `${Math.floor(uptimeMin / 60)}時間${uptimeMin % 60}分`;
+
+      document.getElementById('content').innerHTML = `
+        <div class="record">
+          <div class="title">🏆 歴代最高スコア</div>
+          <div class="name">${s.recordHolderName ? escapeHtml(s.recordHolderName) : '- まだ記録なし -'}</div>
+          <div class="mass">${s.recordMass.toLocaleString()} スコア</div>
+        </div>
+        <div class="grid">
+          <div class="stat"><div class="num">${s.totalGamesJoined.toLocaleString()}</div><div class="label">累計参加回数</div></div>
+          <div class="stat"><div class="num">${s.totalKills.toLocaleString()}</div><div class="label">累計撃破数</div></div>
+          <div class="stat"><div class="num">${s.totalDeaths.toLocaleString()}</div><div class="label">累計被食数</div></div>
+          <div class="stat"><div class="num">${s.totalGoldenFoodEaten.toLocaleString()}</div><div class="label">🌟取得数</div></div>
+          <div class="stat"><div class="num">${s.totalRounds.toLocaleString()}</div><div class="label">開催ラウンド数</div></div>
+          <div class="stat"><div class="num">${s.currentPlayersOnline}</div><div class="label">現在の接続数</div></div>
+        </div>
+        <div class="live">
+          <span>現在のワールドサイズ</span><span>${s.currentWorldSize}</span>
+        </div>
+        <div class="live">
+          <span>サーバー稼働時間</span><span>${uptimeStr}</span>
+        </div>
+        <div style="text-align:center;">
+          <span class="persistent-badge ${s.persistent ? 'on' : 'off'}">${s.persistent ? '✅ データ永続化 有効' : '⚠️ データ永続化 未設定'}</span>
+        </div>
+      `;
+    }).catch(() => {
+      document.getElementById('content').innerHTML = '<p style="text-align:center;color:#ff8899;">統計の取得に失敗しました</p>';
+    });
+
+    function escapeHtml(str) {
+      return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+  </script>
+</body>
+</html>

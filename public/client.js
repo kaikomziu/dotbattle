@@ -5,6 +5,7 @@
   const lobby = document.getElementById('lobby');
   const gameUI = document.getElementById('gameUI');
   const nameInput = document.getElementById('nameInput');
+  const lobbyTitle = document.getElementById('lobbyTitle');
   const joinBtn = document.getElementById('joinBtn');
   const connStatus = document.getElementById('connStatus');
   const canvas = document.getElementById('canvas');
@@ -241,8 +242,21 @@
     { id: 'games_5', icon: '🎮', title: '常連さん', desc: '5回プレイに参加する', cat: 'プレイ実績', progressKey: 'gamesPlayed', target: 5 },
     { id: 'games_20', icon: '🎫', title: 'ベテラン', desc: '20回プレイに参加する', cat: 'プレイ実績', progressKey: 'gamesPlayed', target: 20 },
     { id: 'playtime_10', icon: '⏱️', title: '10分プレイヤー', desc: '累計プレイ時間10分', cat: 'プレイ実績' },
-    { id: 'playtime_60', icon: '⏳', title: '1時間プレイヤー', desc: '累計プレイ時間60分', cat: 'プレイ実績' }
+    { id: 'playtime_60', icon: '⏳', title: '1時間プレイヤー', desc: '累計プレイ時間60分', cat: 'プレイ実績' },
+
+    // --- 隠し要素(このゲームには秘密がまだあるらしい…見つけるまで内容は伏せられる) ---
+    { id: 'hidden_stats', icon: '📊', title: '統計マニア', desc: '???', hint: 'サーバー統計の隠しページを見つけた', cat: '🎭 隠し要素' },
+    { id: 'hidden_credits', icon: '🎬', title: '楽屋裏探検隊', desc: '???', hint: 'クレジットの隠しページを見つけた', cat: '🎭 隠し要素' },
+    { id: 'hidden_omikuji', icon: '🎋', title: '占い師', desc: '???', hint: '隠しおみくじページで運勢を占った', cat: '🎭 隠し要素' },
+    { id: 'hidden_daikichi', icon: '🎍', title: '強運の持ち主', desc: '???', hint: 'おみくじで大吉を引いた', cat: '🎭 隠し要素' },
+    { id: 'hidden_retro', icon: '💾', title: '懐古厨', desc: '???', hint: '懐かしのホームページ風・隠しページを見つけた', cat: '🎭 隠し要素' },
+    { id: 'hidden_tos', icon: '📜', title: '規約は読む派', desc: '???', hint: '謎の利用規約ページを最後まで読んだ', cat: '🎭 隠し要素' },
+    { id: 'hidden_konami', icon: '🕹️', title: 'コマンド入力の達人', desc: '???', hint: 'ロビーで例のコマンドを入力した(↑↑↓↓←→←→BA)', cat: '🎭 隠し要素' },
+    { id: 'hidden_logotap', icon: '👆', title: 'タップの魔術師', desc: '???', hint: 'ロビーのタイトルを連打した', cat: '🎭 隠し要素' },
+    { id: 'hidden_midnight', icon: '🌙', title: '深夜の住人', desc: '???', hint: '深夜2時〜4時にプレイに参加した', cat: '🎭 隠し要素' },
+    { id: 'hidden_allsecrets', icon: '🗝️', title: 'すべてを見た者', desc: '???', hint: '隠し要素の実績をすべて解除した', cat: '🎭 隠し要素' }
   ];
+  const HIDDEN_SECRET_IDS = ['hidden_stats', 'hidden_credits', 'hidden_omikuji', 'hidden_daikichi', 'hidden_retro', 'hidden_tos', 'hidden_konami', 'hidden_logotap', 'hidden_midnight'];
 
   function unlockAchievement(id) {
     if (achievementUnlocked[id]) return;
@@ -253,6 +267,10 @@
     showAchievementToast(def);
     if (latestState.effectsEnabled) playSound('item');
     if (!achievementsModal.classList.contains('hidden')) renderAchievementsList();
+    // 隠し要素をすべて集めたら特別な実績を解除
+    if (HIDDEN_SECRET_IDS.includes(id) && HIDDEN_SECRET_IDS.every(hid => achievementUnlocked[hid])) {
+      unlockAchievement('hidden_allsecrets');
+    }
   }
 
   // 実績解除が連続しても順番に表示するトーストキュー
@@ -287,7 +305,7 @@
       html += `<h4>${escapeHtml(cat)}</h4>`;
       for (const a of ACHIEVEMENTS.filter(x => x.cat === cat)) {
         const unlocked = !!achievementUnlocked[a.id];
-        let desc = a.desc;
+        let desc = (unlocked && a.hint) ? a.hint : a.desc;
         if (!unlocked && a.progressKey) {
           desc += ` (現在 ${Math.min(achievementStats[a.progressKey] || 0, a.target)}/${a.target})`;
         }
@@ -652,6 +670,81 @@
   refreshSettingsButtons();
   if (!settings.minimapEnabled) minimapCanvas.classList.add('hidden');
 
+  // ========================================================
+  // ===== 隠し要素(このゲームにはまだ秘密があるらしい…) =====
+  // ========================================================
+
+  // 隠しページ(/stats /credits /omikuji /retro /tos)を訪れたかをlocalStorageのフラグで確認
+  function checkHiddenPageFlags() {
+    try {
+      if (localStorage.getItem('dotbattle_visited_stats')) unlockAchievement('hidden_stats');
+      if (localStorage.getItem('dotbattle_visited_credits')) unlockAchievement('hidden_credits');
+      if (localStorage.getItem('dotbattle_visited_omikuji')) unlockAchievement('hidden_omikuji');
+      if (localStorage.getItem('dotbattle_drew_daikichi')) unlockAchievement('hidden_daikichi');
+      if (localStorage.getItem('dotbattle_visited_retro')) unlockAchievement('hidden_retro');
+      if (localStorage.getItem('dotbattle_visited_tos')) unlockAchievement('hidden_tos');
+    } catch (e) { /* noop */ }
+  }
+  // スクリプト全体(let/const宣言)の初期化が完了してから実行する
+  setTimeout(checkHiddenPageFlags, 0);
+
+  // ----- コナミコマンド(↑↑↓↓←→←→BA) -----
+  const KONAMI_SEQUENCE = ['arrowup', 'arrowup', 'arrowdown', 'arrowdown', 'arrowleft', 'arrowright', 'arrowleft', 'arrowright', 'b', 'a'];
+  let konamiProgress = 0;
+  window.addEventListener('keydown', (e) => {
+    if (isTypingInField()) return;
+    const key = e.key.toLowerCase();
+    if (key === KONAMI_SEQUENCE[konamiProgress]) {
+      konamiProgress++;
+      if (konamiProgress === KONAMI_SEQUENCE.length) {
+        konamiProgress = 0;
+        unlockAchievement('hidden_konami');
+        if (settings.particlesEnabled) spawnConfettiAtScreenCenter();
+        playSound('round');
+      }
+    } else {
+      konamiProgress = (key === KONAMI_SEQUENCE[0]) ? 1 : 0;
+    }
+  });
+  function spawnConfettiAtScreenCenter() {
+    // ロビー等ゲーム外でも見えるよう、DOM側で簡易的な紙吹雪演出を出す
+    for (let i = 0; i < 60; i++) {
+      const el = document.createElement('div');
+      const colors = ['#ff5566', '#33ccff', '#ffcc33', '#66ff99', '#cc66ff', '#ff9933'];
+      el.style.position = 'fixed';
+      el.style.left = Math.random() * 100 + 'vw';
+      el.style.top = '-20px';
+      el.style.width = '8px';
+      el.style.height = '14px';
+      el.style.background = colors[Math.floor(Math.random() * colors.length)];
+      el.style.zIndex = '9999';
+      el.style.pointerEvents = 'none';
+      el.style.transition = `transform ${1.6 + Math.random()}s linear, opacity ${1.6 + Math.random()}s linear`;
+      document.body.appendChild(el);
+      requestAnimationFrame(() => {
+        el.style.transform = `translateY(${window.innerHeight + 40}px) rotate(${Math.random() * 720}deg)`;
+        el.style.opacity = '0.2';
+      });
+      setTimeout(() => el.remove(), 3000);
+    }
+  }
+
+  // ----- ロビータイトルの連打(10回/3秒以内でPC/スマホどちらでも発動) -----
+  let logoTapTimes = [];
+  if (lobbyTitle) {
+    lobbyTitle.style.cursor = 'pointer';
+    lobbyTitle.addEventListener('click', () => {
+      const now = Date.now();
+      logoTapTimes.push(now);
+      logoTapTimes = logoTapTimes.filter(t => now - t <= 3000);
+      if (logoTapTimes.length >= 10) {
+        logoTapTimes = [];
+        unlockAchievement('hidden_logotap');
+        if (latestState.effectsEnabled) spawnConfettiAtScreenCenter();
+      }
+    });
+  }
+
   function openSettingsModal() {
     refreshSettingsButtons();
     accountSettingsLoggedIn.classList.toggle('hidden', !accountUsername);
@@ -761,6 +854,8 @@
       lifeStartTime = Date.now();
       lifeMinMass = 0;
       diedThisRound = false;
+      const hour = new Date().getHours();
+      if (hour >= 2 && hour < 4) unlockAchievement('hidden_midnight');
     }
   });
 

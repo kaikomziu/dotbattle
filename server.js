@@ -10,8 +10,23 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
+const { Redis } = require('@upstash/redis');
 
 const app = express();
+
+// ===== 永続化(Upstash Redisが設定されていればそちらを優先、無ければローカルファイル) =====
+// Renderなど無料ホスティングは再デプロイでローカルファイルが消えるため、
+// 環境変数 UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN を設定すると永続化される。
+let redis = null;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN
+  });
+  console.log('✅ Upstash Redisに接続します(データは永続化されます)');
+} else {
+  console.log('ℹ️ Upstash Redis未設定のため、ローカルファイルにのみ保存します(再デプロイで消える場合があります)');
+}
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*' }
@@ -27,6 +42,39 @@ app.use(express.static(path.join(__dirname, 'public'), {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
   }
 }));
+
+// ===== 隠しページ(拡張子なしのきれいなURLでアクセスできるように) =====
+app.get('/stats', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'stats.html'));
+});
+app.get('/credits', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'credits.html'));
+});
+app.get('/omikuji', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'omikuji.html'));
+});
+app.get('/retro', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'retro.html'));
+});
+app.get('/tos', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'tos.html'));
+});
+app.get('/api/stats', (req, res) => {
+  res.json({
+    totalGamesJoined: globalStats.totalGamesJoined,
+    totalKills: globalStats.totalKills,
+    totalDeaths: globalStats.totalDeaths,
+    totalGoldenFoodEaten: globalStats.totalGoldenFoodEaten,
+    totalRounds: globalStats.totalRounds,
+    recordMass: globalStats.recordMass,
+    recordHolderName: globalStats.recordHolderName,
+    serverBootAt: globalStats.serverBootAt,
+    currentPlayersOnline: players.size,
+    currentWorldSize: Math.round(WORLD_SIZE),
+    currentGameMode: gameMode,
+    persistent: !!redis
+  });
+});
 
 // ===== ゲーム設定 =====
 let WORLD_SIZE = 3000;            // ワールドの一辺(プレイヤーの状況に応じて自動調整される)
@@ -90,7 +138,16 @@ let users = {};
 /** @type {Map<string, {username: string, expiresAt: number}>} トークン→セッション情報(サーバー再起動でクリアされる) */
 const sessions = new Map();
 
-function loadUsers() {
+async function loadUsers() {
+  if (redis) {
+    try {
+      const data = await redis.get('dotbattle:users');
+      users = data && typeof data === 'object' ? data : {};
+      return;
+    } catch (e) {
+      console.error('Redisからのユーザー読み込みに失敗しました:', e.message);
+    }
+  }
   try {
     if (fs.existsSync(USERS_FILE)) {
       users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
@@ -100,14 +157,76 @@ function loadUsers() {
     users = {};
   }
 }
-function saveUsers() {
+async function saveUsers() {
+  if (redis) {
+    try {
+      await redis.set('dotbattle:users', users);
+      return;
+    } catch (e) {
+      console.error('Redisへのユーザー保存に失敗しました:', e.message);
+    }
+  }
   try {
     fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf8');
   } catch (e) {
     console.error('users.jsonの保存に失敗しました:', e.message);
   }
 }
-loadUsers();
+
+// ===== 全プレイヤー累計のグローバル統計(/stats ページ用) =====
+const STATS_FILE = path.join(__dirname, 'globalStats.json');
+const STATS_DEFAULTS = {
+  totalGamesJoined: 0,
+  totalKills: 0,
+  totalDeaths: 0,
+  totalGoldenFoodEaten: 0,
+  totalRounds: 0,
+  recordMass: 0,
+  recordHolderName: null,
+  serverBootAt: Date.now()
+};
+let globalStats = Object.assign({}, STATS_DEFAULTS);
+async function loadGlobalStats() {
+  if (redis) {
+    try {
+      const data = await redis.get('dotbattle:globalStats');
+      if (data && typeof data === 'object') globalStats = Object.assign({}, STATS_DEFAULTS, data);
+      globalStats.serverBootAt = Date.now();
+      return;
+    } catch (e) {
+      console.error('Redisからの統計読み込みに失敗しました:', e.message);
+    }
+  }
+  try {
+    if (fs.existsSync(STATS_FILE)) {
+      globalStats = Object.assign({}, STATS_DEFAULTS, JSON.parse(fs.readFileSync(STATS_FILE, 'utf8')));
+    }
+  } catch (e) {
+    console.error('globalStats.jsonの読み込みに失敗しました:', e.message);
+  }
+  globalStats.serverBootAt = Date.now(); // 起動時刻は再起動のたびに更新(稼働時間表示用)
+}
+let statsSaveTimer = null;
+function saveGlobalStats() {
+  // 高頻度更新(キル等)がまとめて書き込まれるよう少し遅延させる
+  if (statsSaveTimer) return;
+  statsSaveTimer = setTimeout(async () => {
+    statsSaveTimer = null;
+    if (redis) {
+      try {
+        await redis.set('dotbattle:globalStats', globalStats);
+        return;
+      } catch (e) {
+        console.error('Redisへの統計保存に失敗しました:', e.message);
+      }
+    }
+    try {
+      fs.writeFileSync(STATS_FILE, JSON.stringify(globalStats, null, 2), 'utf8');
+    } catch (e) {
+      console.error('globalStats.jsonの保存に失敗しました:', e.message);
+    }
+  }, 2000);
+}
 
 function createSession(username) {
   const token = crypto.randomBytes(24).toString('hex');
@@ -474,6 +593,8 @@ function startRound(durationMs) {
 function finishRound() {
   if (roundState !== 'active') return;
   roundState = 'ended';
+  globalStats.totalRounds += 1;
+  saveGlobalStats();
   let resultMsg;
   const winnerIds = []; // 実績解除通知を送る相手(勝者/生存者)
 
@@ -658,6 +779,8 @@ io.on('connection', (socket) => {
     player.accountUsername = accountUsername || null;
     if (gameMode === 'team') assignTeamBalanced(player);
     players.set(socket.id, player);
+    globalStats.totalGamesJoined += 1;
+    saveGlobalStats();
     socket.emit('welcome', {
       id: socket.id,
       worldSize: WORLD_SIZE,
@@ -1285,6 +1408,8 @@ setInterval(() => {
       const d = Math.hypot(p.x - goldenFood.x, p.y - goldenFood.y);
       if (d < p.radius + GOLDEN_FOOD_RADIUS) {
         p.mass += GOLDEN_FOOD_GROWTH;
+        globalStats.totalGoldenFoodEaten += 1;
+        saveGlobalStats();
         io.emit('feedEvent', {
           kind: 'golden',
           text: `🌟 ${p.name} がゴールデンフードを手に入れた! (+${GOLDEN_FOOD_GROWTH})`,
@@ -1327,6 +1452,9 @@ setInterval(() => {
         a.mass += b.mass;
         a.kills += 1;
         b.alive = false;
+        globalStats.totalKills += 1;
+        globalStats.totalDeaths += 1;
+        saveGlobalStats();
         io.to(b.id).emit('eaten', { by: a.name });
         io.emit('feedEvent', {
           kind: 'kill',
@@ -1356,6 +1484,15 @@ setInterval(() => {
           }
         }, 800);
       }
+    }
+  }
+
+  // 歴代最高スコアの更新チェック(/stats ページ用)
+  for (const p of players.values()) {
+    if (p.alive && p.mass > globalStats.recordMass) {
+      globalStats.recordMass = Math.round(p.mass);
+      globalStats.recordHolderName = p.name;
+      saveGlobalStats();
     }
   }
 
@@ -1411,25 +1548,35 @@ setInterval(() => {
   io.emit('state', state);
 }, TICK_MS);
 
-server.listen(PORT, '0.0.0.0', () => {
-  const nets = os.networkInterfaces();
-  const lanIPs = [];
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name]) {
-      if (net.family === 'IPv4' && !net.internal) {
-        lanIPs.push(net.address);
+// ===== 隠し404ページ(どのルートにもマッチしなかった場合) =====
+app.use((req, res) => {
+  res.status(404).sendFile(path.join(__dirname, 'public', '404.html'));
+});
+
+(async () => {
+  await loadUsers();
+  await loadGlobalStats();
+
+  server.listen(PORT, '0.0.0.0', () => {
+    const nets = os.networkInterfaces();
+    const lanIPs = [];
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name]) {
+        if (net.family === 'IPv4' && !net.internal) {
+          lanIPs.push(net.address);
+        }
       }
     }
-  }
-  console.log('====================================');
-  console.log(' マルチプレイゲーム サーバー起動完了');
-  console.log('====================================');
-  console.log(`PCから: http://localhost:${PORT}`);
-  if (lanIPs.length) {
-    console.log('スマホから(同じWi-Fiに接続して):');
-    lanIPs.forEach(ip => console.log(`  http://${ip}:${PORT}`));
-  } else {
-    console.log('LAN IPが見つかりませんでした。`ipconfig`で確認してください。');
-  }
-  console.log('====================================');
-});
+    console.log('====================================');
+    console.log(' マルチプレイゲーム サーバー起動完了');
+    console.log('====================================');
+    console.log(`PCから: http://localhost:${PORT}`);
+    if (lanIPs.length) {
+      console.log('スマホから(同じWi-Fiに接続して):');
+      lanIPs.forEach(ip => console.log(`  http://${ip}:${PORT}`));
+    } else {
+      console.log('LAN IPが見つかりませんでした。`ipconfig`で確認してください。');
+    }
+    console.log('====================================');
+  });
+})();

@@ -1,4 +1,5 @@
 node_modules/
 users.json
+globalStats.json
 npm-debug.log*
 .env

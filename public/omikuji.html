@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🎋 今日の運勢 - ドットバトル</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  body {
+    min-height: 100vh;
+    background: linear-gradient(180deg, #1a0f2e 0%, #05070d 80%);
+    color: #eef2f7;
+    font-family: 'Segoe UI', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .box {
+    max-width: 380px;
+    width: 100%;
+    text-align: center;
+  }
+  h1 { font-size: 24px; margin-bottom: 6px; }
+  .sub { color: #7c8aa3; font-size: 12px; margin-bottom: 30px; }
+  .omikuji-box {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 40px 24px;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  .omikuji-box:active { transform: scale(0.97); }
+  .icon { font-size: 56px; margin-bottom: 12px; }
+  .draw-text { font-size: 15px; color: #a9b4c6; }
+  .result { display: none; }
+  .result.show { display: block; }
+  .rank {
+    font-size: 40px;
+    font-weight: 900;
+    margin: 10px 0;
+    animation: pop 0.4s cubic-bezier(.2,1.5,.3,1);
+  }
+  @keyframes pop { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .rank.daikichi { color: #ffcc33; text-shadow: 0 0 20px rgba(255,204,51,0.6); }
+  .rank.kichi { color: #66ff99; }
+  .rank.chukichi { color: #33ccff; }
+  .rank.shokichi { color: #cc99ff; }
+  .rank.suekichi { color: #a9b4c6; }
+  .rank.kyou { color: #ff5566; }
+  .message { font-size: 14px; color: #eef2f7; line-height: 1.7; margin-top: 14px; }
+  .again {
+    margin-top: 24px;
+    padding: 10px 20px;
+    background: rgba(255,255,255,0.08);
+    border: none;
+    border-radius: 999px;
+    color: #cfd8e8;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .back {
+    display: inline-block;
+    margin-top: 20px;
+    color: #33ccff;
+    text-decoration: none;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+  <div class="box">
+    <h1>🎋 今日のドットバトル運勢</h1>
+    <p class="sub">タップして今日の運勢を占おう</p>
+
+    <div id="draw" class="omikuji-box">
+      <div class="icon">🎍</div>
+      <div class="draw-text">タップしておみくじを引く</div>
+    </div>
+
+    <div id="result" class="result">
+      <div id="rank" class="rank"></div>
+      <div id="message" class="message"></div>
+      <button class="again" onclick="location.reload()">もう一度引く</button>
+    </div>
+
+    <a href="/" class="back">🎮 ゲームに戻る</a>
+  </div>
+
+  <script>
+    const FORTUNES = [
+      { rank: '大吉', cls: 'daikichi', weight: 5, msgs: [
+        '今日はどんな格上も飲み込める予感。積極的に攻めよう!',
+        'ゴールデンフードはあなたのために出現している。',
+        '連続キル確定の日。パワーアップを惜しみなく使おう。'
+      ]},
+      { rank: '吉', cls: 'kichi', weight: 15, msgs: [
+        'エサ運が良い日。まずはコツコツ育とう。',
+        'ワープホールが幸運を運んでくる。',
+        'BOTとは仲良くできそう。'
+      ]},
+      { rank: '中吉', cls: 'chukichi', weight: 25, msgs: [
+        '無理せずマイペースにいこう。',
+        '観戦から入るのも吉。',
+        '実績解除のチャンスあり。'
+      ]},
+      { rank: '小吉', cls: 'shokichi', weight: 25, msgs: [
+        '可もなく不可もなく。まずはWASDに慣れよう。',
+        'チーム戦なら味方に助けられそう。',
+        'ミニマップをよく見ると良いことがある。'
+      ]},
+      { rank: '末吉', cls: 'suekichi', weight: 20, msgs: [
+        '油断は禁物。壁には気をつけて。',
+        '今日は無理せず観戦がおすすめ。',
+        '感染鬼ごっこでは逃げ切れる…かも。'
+      ]},
+      { rank: '凶', cls: 'kyou', weight: 10, msgs: [
+        '壁に激突する予感…回避を信じよう。',
+        '格上に飲み込まれ注意。無敵時間を大事に。',
+        '今日はBOTの方が強いかもしれない。'
+      ]}
+    ];
+
+    function pickFortune() {
+      const total = FORTUNES.reduce((s, f) => s + f.weight, 0);
+      let r = Math.random() * total;
+      for (const f of FORTUNES) {
+        if (r < f.weight) return f;
+        r -= f.weight;
+      }
+      return FORTUNES[FORTUNES.length - 1];
+    }
+
+    document.getElementById('draw').addEventListener('click', function () {
+      const f = pickFortune();
+      const msg = f.msgs[Math.floor(Math.random() * f.msgs.length)];
+      const rankEl = document.getElementById('rank');
+      rankEl.textContent = f.rank;
+      rankEl.className = 'rank ' + f.cls;
+      document.getElementById('message').textContent = msg;
+      this.style.display = 'none';
+      document.getElementById('result').classList.add('show');
+      try {
+        const key = 'dotbattle_omikuji_ranks';
+        const seen = JSON.parse(localStorage.getItem(key) || '[]');
+        if (!seen.includes(f.rank)) seen.push(f.rank);
+        localStorage.setItem(key, JSON.stringify(seen));
+        if (f.rank === '大吉') localStorage.setItem('dotbattle_drew_daikichi', '1');
+        localStorage.setItem('dotbattle_visited_omikuji', '1');
+      } catch (e) {}
+    });
+  </script>
+</body>
+</html>
