@@ -87,6 +87,43 @@
   const cheatWorldSizeApplyBtn = document.getElementById('cheatWorldSizeApplyBtn');
   const cheatWorldSizeAutoBtn = document.getElementById('cheatWorldSizeAutoBtn');
   const cheatWorldSizeStatus = document.getElementById('cheatWorldSizeStatus');
+
+  // 詳細パラメータ調整関連の要素
+  const paramFoodGrowth = document.getElementById('paramFoodGrowth');
+  const paramMaxSpeed = document.getElementById('paramMaxSpeed');
+  const paramRespawnInvuln = document.getElementById('paramRespawnInvuln');
+  const paramEmoteCooldown = document.getElementById('paramEmoteCooldown');
+  const paramMaxCheatMass = document.getElementById('paramMaxCheatMass');
+  const paramBasicApplyBtn = document.getElementById('paramBasicApplyBtn');
+  const paramBoostCostRatio = document.getElementById('paramBoostCostRatio');
+  const paramBoostDuration = document.getElementById('paramBoostDuration');
+  const paramBoostCooldown = document.getElementById('paramBoostCooldown');
+  const paramBoostSpeedMul = document.getElementById('paramBoostSpeedMul');
+  const paramBoostApplyBtn = document.getElementById('paramBoostApplyBtn');
+  const paramGoldenGrowth = document.getElementById('paramGoldenGrowth');
+  const paramGoldenLifetime = document.getElementById('paramGoldenLifetime');
+  const paramGoldenIntervalMin = document.getElementById('paramGoldenIntervalMin');
+  const paramGoldenIntervalMax = document.getElementById('paramGoldenIntervalMax');
+  const paramGoldenApplyBtn = document.getElementById('paramGoldenApplyBtn');
+  const paramItemMaxCount = document.getElementById('paramItemMaxCount');
+  const paramItemInterval = document.getElementById('paramItemInterval');
+  const paramItemApplyBtn = document.getElementById('paramItemApplyBtn');
+  const itemTypeToggleRow = document.getElementById('itemTypeToggleRow');
+  const paramHazardDamage = document.getElementById('paramHazardDamage');
+  const paramIceSlip = document.getElementById('paramIceSlip');
+  const paramGravityStrength = document.getElementById('paramGravityStrength');
+  const paramKnockbackStrength = document.getElementById('paramKnockbackStrength');
+  const paramStormDamage = document.getElementById('paramStormDamage');
+  const paramKothRate = document.getElementById('paramKothRate');
+  const paramStrengthApplyBtn = document.getElementById('paramStrengthApplyBtn');
+  const paramObstacleCount = document.getElementById('paramObstacleCount');
+  const paramHazardCount = document.getElementById('paramHazardCount');
+  const paramIceCount = document.getElementById('paramIceCount');
+  const paramGravityCount = document.getElementById('paramGravityCount');
+  const paramCountsApplyBtn = document.getElementById('paramCountsApplyBtn');
+  const paramJoinLockBtn = document.getElementById('paramJoinLockBtn');
+  const paramMaxPlayers = document.getElementById('paramMaxPlayers');
+  const paramMaxPlayersApplyBtn = document.getElementById('paramMaxPlayersApplyBtn');
   const killFeed = document.getElementById('killFeed');
   const helpOpenBtn = document.getElementById('helpOpenBtn');
   const helpGameBtn = document.getElementById('helpGameBtn');
@@ -1217,6 +1254,11 @@
     connStatus.textContent = '接続エラー。サーバーが起動しているか確認してください。';
     connStatus.classList.add('err');
   });
+  socket.on('joinRejected', (data) => {
+    connStatus.textContent = (data && data.message) || '参加できませんでした。';
+    connStatus.classList.add('err');
+    joinBtn.disabled = false;
+  });
 
   socket.on('welcome', (data) => {
     myId = data.id;
@@ -1280,12 +1322,17 @@
     if (isAdmin && !adminPanel.classList.contains('hidden')) {
       const now = Date.now();
       const focusInsideList = adminPlayerList.contains(document.activeElement);
+      const activeTag = document.activeElement && document.activeElement.tagName;
+      // 管理者パネル内のinput/selectを操作中の場合だけ上書きを止める(パネル外のフォーカスは無関係)
+      const isEditingField = adminPanel.contains(document.activeElement)
+        && (activeTag === 'INPUT' || activeTag === 'SELECT' || activeTag === 'TEXTAREA');
       if (now - lastAdminListRender > 1000 && !focusInsideList) {
         lastAdminListRender = now;
         renderAdminPlayerList();
         renderAdminStats();
         refreshAnnounceTargets();
         renderRoundAdminStatus();
+        if (!isEditingField) refreshParamInputs();
       }
     }
   });
@@ -2100,6 +2147,103 @@
     cheatWorldSizeAutoBtn.addEventListener('click', () => socket.emit('admin:setWorldSizeOverride', { clear: true }));
   }
 
+  // ===== 詳細パラメータ調整 =====
+  // 空欄のまま適用した項目は変更しない(プレースホルダーに現在値が表示されているのでそのまま維持される)
+  function readNum(input) {
+    if (!input || input.value === '') return undefined;
+    const n = parseFloat(input.value);
+    return isFinite(n) ? n : undefined;
+  }
+  if (paramBasicApplyBtn) {
+    paramBasicApplyBtn.addEventListener('click', () => {
+      socket.emit('admin:setBasicParams', {
+        foodGrowth: readNum(paramFoodGrowth),
+        maxSpeed: readNum(paramMaxSpeed),
+        respawnInvulnMs: readNum(paramRespawnInvuln),
+        emoteCooldownMs: readNum(paramEmoteCooldown),
+        maxCheatMass: readNum(paramMaxCheatMass)
+      });
+      [paramFoodGrowth, paramMaxSpeed, paramRespawnInvuln, paramEmoteCooldown, paramMaxCheatMass].forEach(i => { if (i) i.value = ''; });
+    });
+  }
+  if (paramBoostApplyBtn) {
+    paramBoostApplyBtn.addEventListener('click', () => {
+      socket.emit('admin:setBoostParams', {
+        costRatio: readNum(paramBoostCostRatio),
+        durationMs: readNum(paramBoostDuration),
+        cooldownMs: readNum(paramBoostCooldown),
+        speedMultiplier: readNum(paramBoostSpeedMul)
+      });
+      [paramBoostCostRatio, paramBoostDuration, paramBoostCooldown, paramBoostSpeedMul].forEach(i => { if (i) i.value = ''; });
+    });
+  }
+  if (paramGoldenApplyBtn) {
+    paramGoldenApplyBtn.addEventListener('click', () => {
+      socket.emit('admin:setGoldenFoodParams', {
+        growth: readNum(paramGoldenGrowth),
+        lifetimeMs: readNum(paramGoldenLifetime),
+        intervalMinMs: readNum(paramGoldenIntervalMin),
+        intervalMaxMs: readNum(paramGoldenIntervalMax)
+      });
+      [paramGoldenGrowth, paramGoldenLifetime, paramGoldenIntervalMin, paramGoldenIntervalMax].forEach(i => { if (i) i.value = ''; });
+    });
+  }
+  if (paramItemApplyBtn) {
+    paramItemApplyBtn.addEventListener('click', () => {
+      socket.emit('admin:setItemParams', {
+        maxCount: readNum(paramItemMaxCount),
+        spawnIntervalMs: readNum(paramItemInterval)
+      });
+      [paramItemMaxCount, paramItemInterval].forEach(i => { if (i) i.value = ''; });
+    });
+  }
+  if (itemTypeToggleRow) {
+    itemTypeToggleRow.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-item-type]');
+      if (!btn) return;
+      const type = btn.dataset.itemType;
+      const currentlyOn = btn.classList.contains('active');
+      socket.emit('admin:setItemTypeEnabled', { type, enabled: !currentlyOn });
+    });
+  }
+  if (paramStrengthApplyBtn) {
+    paramStrengthApplyBtn.addEventListener('click', () => {
+      socket.emit('admin:setGimmickStrength', {
+        hazardDamage: readNum(paramHazardDamage),
+        iceSlipperiness: readNum(paramIceSlip),
+        gravityStrength: readNum(paramGravityStrength),
+        knockbackStrength: readNum(paramKnockbackStrength),
+        stormDamage: readNum(paramStormDamage),
+        kothScoreRate: readNum(paramKothRate)
+      });
+      [paramHazardDamage, paramIceSlip, paramGravityStrength, paramKnockbackStrength, paramStormDamage, paramKothRate].forEach(i => { if (i) i.value = ''; });
+    });
+  }
+  if (paramCountsApplyBtn) {
+    paramCountsApplyBtn.addEventListener('click', () => {
+      socket.emit('admin:setGimmickCounts', {
+        obstacles: readNum(paramObstacleCount),
+        hazards: readNum(paramHazardCount),
+        ice: readNum(paramIceCount),
+        gravity: readNum(paramGravityCount)
+      });
+      [paramObstacleCount, paramHazardCount, paramIceCount, paramGravityCount].forEach(i => { if (i) i.value = ''; });
+    });
+  }
+  if (paramJoinLockBtn) {
+    paramJoinLockBtn.addEventListener('click', () => {
+      const locked = latestState.params ? !!latestState.params.joinLocked : false;
+      socket.emit('admin:setJoinLocked', { locked: !locked });
+    });
+  }
+  if (paramMaxPlayersApplyBtn) {
+    paramMaxPlayersApplyBtn.addEventListener('click', () => {
+      const n = readNum(paramMaxPlayers);
+      socket.emit('admin:setMaxPlayers', { count: n === undefined ? 0 : n });
+      if (paramMaxPlayers) paramMaxPlayers.value = '';
+    });
+  }
+
   // ===== 一括操作(対象: 全員 / 人間のみ / BOTのみ) =====
   document.querySelectorAll('button[data-bulk]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -2179,6 +2323,50 @@
       if (btn) btn.click();
     }
   });
+
+  const ITEM_TYPES_CLIENT = ['speed', 'shield', 'magnet', 'giant', 'mystery'];
+  const ITEM_TYPE_LABELS = { speed: '⚡速度', shield: '🛡️盾', magnet: '🧲磁石', giant: '💥巨大化', mystery: '❓謎' };
+  function refreshParamInputs() {
+    const p = latestState.params;
+    if (!p) return;
+    if (paramFoodGrowth) paramFoodGrowth.placeholder = p.foodGrowth;
+    if (paramMaxSpeed) paramMaxSpeed.placeholder = p.maxSpeed;
+    if (paramRespawnInvuln) paramRespawnInvuln.placeholder = p.respawnInvulnMs;
+    if (paramEmoteCooldown) paramEmoteCooldown.placeholder = p.emoteCooldownMs;
+    if (paramMaxCheatMass) paramMaxCheatMass.placeholder = p.maxCheatMass;
+    if (paramBoostCostRatio) paramBoostCostRatio.placeholder = p.boostCostRatio;
+    if (paramBoostDuration) paramBoostDuration.placeholder = p.boostDurationMs;
+    if (paramBoostCooldown) paramBoostCooldown.placeholder = p.boostCooldownMs;
+    if (paramBoostSpeedMul) paramBoostSpeedMul.placeholder = p.boostSpeedMultiplier;
+    if (paramGoldenGrowth) paramGoldenGrowth.placeholder = p.goldenFoodGrowth;
+    if (paramGoldenLifetime) paramGoldenLifetime.placeholder = p.goldenFoodLifetimeMs;
+    if (paramGoldenIntervalMin) paramGoldenIntervalMin.placeholder = p.goldenFoodIntervalMinMs;
+    if (paramGoldenIntervalMax) paramGoldenIntervalMax.placeholder = p.goldenFoodIntervalMaxMs;
+    if (paramItemMaxCount) paramItemMaxCount.placeholder = p.itemMaxCount;
+    if (paramItemInterval) paramItemInterval.placeholder = p.itemSpawnIntervalMs;
+    if (paramHazardDamage) paramHazardDamage.placeholder = p.hazardDamagePerSec;
+    if (paramIceSlip) paramIceSlip.placeholder = p.iceSlipperiness;
+    if (paramGravityStrength) paramGravityStrength.placeholder = p.gravityStrengthMultiplier;
+    if (paramKnockbackStrength) paramKnockbackStrength.placeholder = p.knockbackStrength;
+    if (paramStormDamage) paramStormDamage.placeholder = p.stormDamagePerSec;
+    if (paramKothRate) paramKothRate.placeholder = p.kothScoreRate;
+    if (paramObstacleCount) paramObstacleCount.placeholder = p.obstacleCount;
+    if (paramHazardCount) paramHazardCount.placeholder = p.hazardCount;
+    if (paramIceCount) paramIceCount.placeholder = p.iceCount;
+    if (paramGravityCount) paramGravityCount.placeholder = p.gravityCount;
+    if (paramMaxPlayers) paramMaxPlayers.placeholder = p.maxPlayers > 0 ? p.maxPlayers : '無制限';
+    if (paramJoinLockBtn) {
+      paramJoinLockBtn.textContent = `新規参加ロック: ${p.joinLocked ? 'ON' : 'OFF'}`;
+      paramJoinLockBtn.classList.toggle('on', !!p.joinLocked);
+      paramJoinLockBtn.classList.toggle('off', !p.joinLocked);
+    }
+    if (itemTypeToggleRow) {
+      const enabled = new Set(p.enabledItemTypes || []);
+      itemTypeToggleRow.innerHTML = ITEM_TYPES_CLIENT.map(t =>
+        `<button class="${enabled.has(t) ? 'active' : ''}" data-item-type="${t}">${ITEM_TYPE_LABELS[t]}: ${enabled.has(t) ? 'ON' : 'OFF'}</button>`
+      ).join('');
+    }
+  }
 
   function renderAdminStats() {
     if (!adminStats) return;

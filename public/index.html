@@ -538,6 +538,104 @@
         <p id="cheatWorldSizeStatus" class="admin-note">現在: 自動調整</p>
       </div>
 
+      <div class="admin-section params-section">
+        <h4>🔧 詳細パラメータ調整</h4>
+        <p class="admin-note">ほぼ全てのゲームバランス数値をここで直接変更できます</p>
+
+        <h5>基本</h5>
+        <div class="admin-row">
+          <label>エサ成長量<input id="paramFoodGrowth" type="number" min="1" max="1000" /></label>
+          <label>最大速度<input id="paramMaxSpeed" type="number" min="50" max="2000" /></label>
+        </div>
+        <div class="admin-row">
+          <label>復活無敵(ms)<input id="paramRespawnInvuln" type="number" min="0" max="30000" /></label>
+          <label>絵文字CD(ms)<input id="paramEmoteCooldown" type="number" min="0" max="30000" /></label>
+        </div>
+        <div class="admin-row">
+          <label>最大化チート到達スコア<input id="paramMaxCheatMass" type="number" min="100" max="10000000" /></label>
+        </div>
+        <div class="admin-row">
+          <button id="paramBasicApplyBtn">基本を適用</button>
+        </div>
+
+        <h5>パワーアップ</h5>
+        <div class="admin-row">
+          <label>コスト割合(0〜1)<input id="paramBoostCostRatio" type="number" min="0" max="1" step="0.01" /></label>
+          <label>持続(ms)<input id="paramBoostDuration" type="number" min="200" max="30000" /></label>
+        </div>
+        <div class="admin-row">
+          <label>クールダウン(ms)<input id="paramBoostCooldown" type="number" min="0" max="60000" /></label>
+          <label>速度倍率<input id="paramBoostSpeedMul" type="number" min="1" max="10" step="0.1" /></label>
+        </div>
+        <div class="admin-row">
+          <button id="paramBoostApplyBtn">パワーアップを適用</button>
+        </div>
+
+        <h5>ゴールデンフード</h5>
+        <div class="admin-row">
+          <label>成長量<input id="paramGoldenGrowth" type="number" min="1" max="100000" /></label>
+          <label>寿命(ms)<input id="paramGoldenLifetime" type="number" min="2000" max="300000" /></label>
+        </div>
+        <div class="admin-row">
+          <label>出現間隔:最小(ms)<input id="paramGoldenIntervalMin" type="number" min="1000" max="600000" /></label>
+          <label>出現間隔:最大(ms)<input id="paramGoldenIntervalMax" type="number" min="1000" max="900000" /></label>
+        </div>
+        <div class="admin-row">
+          <button id="paramGoldenApplyBtn">ゴールデンフードを適用</button>
+        </div>
+
+        <h5>アイテム</h5>
+        <div class="admin-row">
+          <label>最大出現数<input id="paramItemMaxCount" type="number" min="0" max="100" /></label>
+          <label>出現間隔(ms)<input id="paramItemInterval" type="number" min="200" max="60000" /></label>
+        </div>
+        <div class="admin-row">
+          <button id="paramItemApplyBtn">アイテム数を適用</button>
+        </div>
+        <div class="admin-row item-type-row" id="itemTypeToggleRow">
+          <!-- JSで種類ごとのON/OFFボタンを生成 -->
+        </div>
+
+        <h5>ギミック強度</h5>
+        <div class="admin-row">
+          <label>危険地帯ダメージ/秒<input id="paramHazardDamage" type="number" min="0" max="500" /></label>
+          <label>氷の滑りやすさ<input id="paramIceSlip" type="number" min="0.1" max="10" step="0.1" /></label>
+        </div>
+        <div class="admin-row">
+          <label>重力の強さ<input id="paramGravityStrength" type="number" min="0" max="10" step="0.1" /></label>
+          <label>ノックバックの強さ<input id="paramKnockbackStrength" type="number" min="0" max="10" step="0.1" /></label>
+        </div>
+        <div class="admin-row">
+          <label>ストームダメージ/秒<input id="paramStormDamage" type="number" min="0" max="500" /></label>
+          <label>ヒルpt/秒<input id="paramKothRate" type="number" min="0" max="500" /></label>
+        </div>
+        <div class="admin-row">
+          <button id="paramStrengthApplyBtn">ギミック強度を適用</button>
+        </div>
+
+        <h5>ギミック配置数(次回再生成時に反映)</h5>
+        <div class="admin-row">
+          <label>障害物<input id="paramObstacleCount" type="number" min="0" max="30" /></label>
+          <label>危険地帯<input id="paramHazardCount" type="number" min="0" max="20" /></label>
+        </div>
+        <div class="admin-row">
+          <label>氷ゾーン<input id="paramIceCount" type="number" min="0" max="20" /></label>
+          <label>重力井戸<input id="paramGravityCount" type="number" min="0" max="10" /></label>
+        </div>
+        <div class="admin-row">
+          <button id="paramCountsApplyBtn">配置数を適用して再生成</button>
+        </div>
+
+        <h5>ルーム管理</h5>
+        <div class="admin-row">
+          <button id="paramJoinLockBtn" class="toggle-btn">新規参加ロック: -</button>
+        </div>
+        <div class="admin-row">
+          <label>最大人数(0=無制限)<input id="paramMaxPlayers" type="number" min="0" max="200" /></label>
+          <button id="paramMaxPlayersApplyBtn">人数上限を適用</button>
+        </div>
+      </div>
+
       <div class="admin-section">
         <h4>プレイヤー / BOT 一覧</h4>
         <div id="adminPlayerList" class="admin-list"></div>

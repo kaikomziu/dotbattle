@@ -84,13 +84,13 @@ const WORLD_BASE_SIZE = 2500;      // 誰もいなくても確保する基本サ
 const TICK_RATE = 20;             // サーバー更新頻度 (Hz)
 const TICK_MS = 1000 / TICK_RATE;
 const BASE_RADIUS = 20;           // プレイヤー初期半径
-const MAX_SPEED = 260;            // 最小サイズ時の速度(px/s)
+let MAX_SPEED = 260;              // 最小サイズ時の速度(px/s)。管理者が変更可能
 let FOOD_COUNT = 220;             // フィールド上のエサ最大数(管理者が変更可能)
 const FOOD_COUNT_MIN = 20;
 const FOOD_COUNT_MAX = 500;
 const FOOD_RADIUS = 6;
-const FOOD_GROWTH = 10;           // エサを食べた時に加算される「質量」
-const RESPAWN_INVULN_MS = 1500;   // 復活後の無敵時間
+let FOOD_GROWTH = 10;             // エサを食べた時に加算される「質量」(管理者が変更可能)
+let RESPAWN_INVULN_MS = 1500;     // 復活後の無敵時間(管理者が変更可能)
 
 // ===== キルストリーク実況 =====
 const STREAK_TIMEOUT_MS = 8000; // この時間内に連続で倒すとストリーク継続
@@ -104,30 +104,32 @@ const STREAK_LABELS = {
 
 // ===== 絵文字タウント =====
 const EMOTE_TYPES = ['laugh', 'cry', 'angry', 'fire', 'thumbsup', 'skull', 'wow', 'cool', 'party', 'heart', 'wave', 'hundred'];
-const EMOTE_COOLDOWN_MS = 1200;
+let EMOTE_COOLDOWN_MS = 1200; // 管理者が変更可能
 
 // ===== ゴールデンフード(ランダムイベント) =====
-const GOLDEN_FOOD_GROWTH = 150;      // 通常エサの15倍のスコア
+let GOLDEN_FOOD_GROWTH = 150;        // 通常エサの15倍のスコア(管理者が変更可能)
 const GOLDEN_FOOD_RADIUS = 16;
-const GOLDEN_FOOD_LIFETIME_MS = 22000;   // 放置されると消える
-const GOLDEN_FOOD_INTERVAL_MIN_MS = 40000;
-const GOLDEN_FOOD_INTERVAL_MAX_MS = 80000;
+let GOLDEN_FOOD_LIFETIME_MS = 22000;     // 放置されると消える(管理者が変更可能)
+let GOLDEN_FOOD_INTERVAL_MIN_MS = 40000; // 管理者が変更可能
+let GOLDEN_FOOD_INTERVAL_MAX_MS = 80000; // 管理者が変更可能
 
 // ===== 管理者チート =====
-const MAX_PLAYER_CHEAT_MASS = 20000; // 「最大化」チートで即座に到達するスコア
+let MAX_PLAYER_CHEAT_MASS = 20000; // 「最大化」チートで即座に到達するスコア(管理者が変更可能)
 
 // ===== パワーアップ(自分のスコアを消費するスピードブースト) =====
-const BOOST_COST_RATIO = 0.15;    // 現在スコアのこの割合を消費
+let BOOST_COST_RATIO = 0.15;    // 現在スコアのこの割合を消費(管理者が変更可能)
 const BOOST_COST_MIN = 15;        // 最低消費コスト
-const BOOST_DURATION_MS = 2500;   // ブースト持続時間
-const BOOST_COOLDOWN_MS = 6000;   // 再使用までのクールダウン
-const BOOST_SPEED_MULTIPLIER = 1.8;
+let BOOST_DURATION_MS = 2500;   // ブースト持続時間(管理者が変更可能)
+let BOOST_COOLDOWN_MS = 6000;   // 再使用までのクールダウン(管理者が変更可能)
+let BOOST_SPEED_MULTIPLIER = 1.8; // 管理者が変更可能
 
 // ===== 管理者設定 =====
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'karwak'; // 公開デプロイ時はRender等の環境変数で上書き推奨
 const MAX_BOTS_PER_REQUEST = 20;
 const BOT_NAME_POOL = ['ロボ', 'ボット', 'AI', 'メカ', 'ドロイド', 'サイボーグ', 'ユニット', 'ネオ'];
 const ANNOUNCEMENT_MAX_LEN = 100;
+let joinLocked = false;  // trueの間、管理者以外の新規参加を拒否する
+let maxPlayers = 0;      // 0=無制限。指定人数に達すると新規参加を拒否する
 
 // ===== アカウントシステム(登録/ログイン/ゲスト) =====
 const USERS_FILE = path.join(__dirname, 'users.json');
@@ -276,9 +278,10 @@ let worldSizeOverride = null;    // nullなら自動調整、数値なら管理�
 
 // ===== ランダムアイテム =====
 const ITEM_TYPES = ['speed', 'shield', 'magnet', 'giant', 'mystery'];
+let enabledItemTypes = new Set(ITEM_TYPES); // 管理者が種類ごとにON/OFFできる
 const ITEM_RADIUS = 11;
-const ITEM_MAX_COUNT = 8;
-const ITEM_SPAWN_INTERVAL_MS = 3500;
+let ITEM_MAX_COUNT = 8;             // 管理者が変更可能
+let ITEM_SPAWN_INTERVAL_MS = 3500;  // 管理者が変更可能
 let items = [];
 let lastItemSpawnAt = 0;
 
@@ -286,12 +289,20 @@ let lastItemSpawnAt = 0;
 let obstacles = [];   // 障害物(通れない)
 let hazardZones = []; // 危険地帯(継続ダメージ)
 let warpHoles = [];   // ワープホール(2個1組)
+let hazardDamagePerSec = 8;      // 管理者が変更可能
+let iceSlipperiness = 1;         // 氷の滑りやすさ倍率(管理者が変更可能、1が標準)
+let gravityStrengthMultiplier = 1; // 重力井戸の強さ倍率(管理者が変更可能)
+let knockbackStrength = 1;       // ノックバックの強さ倍率(管理者が変更可能)
+let obstacleCount = 5;   // 管理者が変更可能(次回のギミック再生成から反映)
+let hazardCount = 2;     // 管理者が変更可能
+let iceCount = 2;        // 管理者が変更可能
+let gravityCount = 1;    // 管理者が変更可能
 
 // ===== キングオブザヒル =====
-const KOTH_SCORE_PER_SEC = 12;
+let KOTH_SCORE_PER_SEC = 12; // 管理者が変更可能
 
 // ===== バトルロイヤル =====
-const STORM_DAMAGE_PER_SEC = 16;
+let STORM_DAMAGE_PER_SEC = 16; // 管理者が変更可能
 
 // ===== ラウンドシステム =====
 let roundState = 'waiting'; // 'waiting' | 'active' | 'ended'
@@ -347,7 +358,8 @@ ensureFood();
 
 // ===== ランダムアイテム =====
 function spawnItem() {
-  const type = ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)];
+  const pool = ITEM_TYPES.filter(t => enabledItemTypes.has(t));
+  const type = pool.length ? pool[Math.floor(Math.random() * pool.length)] : ITEM_TYPES[0];
   return {
     id: 'i' + Math.random().toString(36).slice(2, 9),
     type,
@@ -403,7 +415,7 @@ function regenerateGimmicks() {
   gravityWells = [];
   if (!gimmicksEnabled) return;
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < obstacleCount; i++) {
     obstacles.push({
       id: 'obs' + i,
       x: rand(300, WORLD_SIZE - 300),
@@ -411,7 +423,7 @@ function regenerateGimmicks() {
       r: rand(60, 140)
     });
   }
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < hazardCount; i++) {
     hazardZones.push({
       id: 'haz' + i,
       x: rand(300, WORLD_SIZE - 300),
@@ -424,7 +436,7 @@ function regenerateGimmicks() {
   warpHoles = [wa, wb];
 
   if (iceEnabled) {
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < iceCount; i++) {
       iceZones.push({
         id: 'ice' + i,
         x: rand(300, WORLD_SIZE - 300),
@@ -434,7 +446,7 @@ function regenerateGimmicks() {
     }
   }
   if (gravityEnabled) {
-    for (let i = 0; i < 1; i++) {
+    for (let i = 0; i < gravityCount; i++) {
       gravityWells.push({
         id: 'grav' + i,
         x: rand(400, WORLD_SIZE - 400),
@@ -832,6 +844,16 @@ io.on('connection', (socket) => {
   });
 
   socket.on('join', (data) => {
+    if (!players.has(socket.id)) {
+      if (joinLocked && !isAdmin(socket)) {
+        socket.emit('joinRejected', { message: '現在、新規参加はロックされています(管理者が解除するまでお待ちください)' });
+        return;
+      }
+      if (maxPlayers > 0 && players.size >= maxPlayers) {
+        socket.emit('joinRejected', { message: `満員です(最大${maxPlayers}人)` });
+        return;
+      }
+    }
     const token = data && data.token;
     const accountUsername = token ? getSessionUsername(token) : null;
     const name = accountUsername || (data && data.name);
@@ -1271,6 +1293,90 @@ io.on('connection', (socket) => {
     themeLock = (mode === 'dark' || mode === 'light') ? mode : null;
   });
 
+  // ============================================================
+  // ===== 管理者による詳細パラメータ調整(ほぼ全ての数値を変更可能) =====
+  // ============================================================
+  function num(v, fallback, min, max) {
+    const n = Number(v);
+    if (!isFinite(n)) return fallback;
+    return Math.max(min, Math.min(max, n));
+  }
+
+  socket.on('admin:setBasicParams', (data) => {
+    if (!isAdmin(socket)) return;
+    if (!data) return;
+    if (data.foodGrowth !== undefined) FOOD_GROWTH = num(data.foodGrowth, FOOD_GROWTH, 1, 1000);
+    if (data.maxSpeed !== undefined) MAX_SPEED = num(data.maxSpeed, MAX_SPEED, 50, 2000);
+    if (data.respawnInvulnMs !== undefined) RESPAWN_INVULN_MS = num(data.respawnInvulnMs, RESPAWN_INVULN_MS, 0, 30000);
+    if (data.emoteCooldownMs !== undefined) EMOTE_COOLDOWN_MS = num(data.emoteCooldownMs, EMOTE_COOLDOWN_MS, 0, 30000);
+    if (data.maxCheatMass !== undefined) MAX_PLAYER_CHEAT_MASS = num(data.maxCheatMass, MAX_PLAYER_CHEAT_MASS, 100, 10000000);
+  });
+
+  socket.on('admin:setBoostParams', (data) => {
+    if (!isAdmin(socket)) return;
+    if (!data) return;
+    if (data.costRatio !== undefined) BOOST_COST_RATIO = num(data.costRatio, BOOST_COST_RATIO, 0, 1);
+    if (data.durationMs !== undefined) BOOST_DURATION_MS = num(data.durationMs, BOOST_DURATION_MS, 200, 30000);
+    if (data.cooldownMs !== undefined) BOOST_COOLDOWN_MS = num(data.cooldownMs, BOOST_COOLDOWN_MS, 0, 60000);
+    if (data.speedMultiplier !== undefined) BOOST_SPEED_MULTIPLIER = num(data.speedMultiplier, BOOST_SPEED_MULTIPLIER, 1, 10);
+  });
+
+  socket.on('admin:setGoldenFoodParams', (data) => {
+    if (!isAdmin(socket)) return;
+    if (!data) return;
+    if (data.growth !== undefined) GOLDEN_FOOD_GROWTH = num(data.growth, GOLDEN_FOOD_GROWTH, 1, 100000);
+    if (data.lifetimeMs !== undefined) GOLDEN_FOOD_LIFETIME_MS = num(data.lifetimeMs, GOLDEN_FOOD_LIFETIME_MS, 2000, 300000);
+    if (data.intervalMinMs !== undefined) GOLDEN_FOOD_INTERVAL_MIN_MS = num(data.intervalMinMs, GOLDEN_FOOD_INTERVAL_MIN_MS, 1000, 600000);
+    if (data.intervalMaxMs !== undefined) GOLDEN_FOOD_INTERVAL_MAX_MS = num(data.intervalMaxMs, GOLDEN_FOOD_INTERVAL_MAX_MS, GOLDEN_FOOD_INTERVAL_MIN_MS, 900000);
+  });
+
+  socket.on('admin:setItemParams', (data) => {
+    if (!isAdmin(socket)) return;
+    if (!data) return;
+    if (data.maxCount !== undefined) ITEM_MAX_COUNT = Math.round(num(data.maxCount, ITEM_MAX_COUNT, 0, 100));
+    if (data.spawnIntervalMs !== undefined) ITEM_SPAWN_INTERVAL_MS = num(data.spawnIntervalMs, ITEM_SPAWN_INTERVAL_MS, 200, 60000);
+  });
+
+  socket.on('admin:setItemTypeEnabled', (data) => {
+    if (!isAdmin(socket)) return;
+    const type = data && data.type;
+    if (!ITEM_TYPES.includes(type)) return;
+    if (data.enabled) enabledItemTypes.add(type);
+    else enabledItemTypes.delete(type);
+  });
+
+  socket.on('admin:setGimmickStrength', (data) => {
+    if (!isAdmin(socket)) return;
+    if (!data) return;
+    if (data.hazardDamage !== undefined) hazardDamagePerSec = num(data.hazardDamage, hazardDamagePerSec, 0, 500);
+    if (data.iceSlipperiness !== undefined) iceSlipperiness = num(data.iceSlipperiness, iceSlipperiness, 0.1, 10);
+    if (data.gravityStrength !== undefined) gravityStrengthMultiplier = num(data.gravityStrength, gravityStrengthMultiplier, 0, 10);
+    if (data.knockbackStrength !== undefined) knockbackStrength = num(data.knockbackStrength, knockbackStrength, 0, 10);
+    if (data.stormDamage !== undefined) STORM_DAMAGE_PER_SEC = num(data.stormDamage, STORM_DAMAGE_PER_SEC, 0, 500);
+    if (data.kothScoreRate !== undefined) KOTH_SCORE_PER_SEC = num(data.kothScoreRate, KOTH_SCORE_PER_SEC, 0, 500);
+  });
+
+  socket.on('admin:setGimmickCounts', (data) => {
+    if (!isAdmin(socket)) return;
+    if (!data) return;
+    if (data.obstacles !== undefined) obstacleCount = Math.round(num(data.obstacles, obstacleCount, 0, 30));
+    if (data.hazards !== undefined) hazardCount = Math.round(num(data.hazards, hazardCount, 0, 20));
+    if (data.ice !== undefined) iceCount = Math.round(num(data.ice, iceCount, 0, 20));
+    if (data.gravity !== undefined) gravityCount = Math.round(num(data.gravity, gravityCount, 0, 10));
+    regenerateGimmicks();
+  });
+
+  socket.on('admin:setJoinLocked', (data) => {
+    if (!isAdmin(socket)) return;
+    joinLocked = !!(data && data.locked);
+  });
+
+  socket.on('admin:setMaxPlayers', (data) => {
+    if (!isAdmin(socket)) return;
+    const n = parseInt(data && data.count);
+    maxPlayers = isFinite(n) && n > 0 ? Math.min(200, n) : 0;
+  });
+
   // ===== ラウンド管理 =====
   socket.on('admin:startRound', (data) => {
     if (!isAdmin(socket)) return;
@@ -1501,7 +1607,8 @@ setInterval(() => {
     const onIce = gimmicksEnabled && iceEnabled && !p.noclip
       && iceZones.some(z => Math.hypot(p.x - z.x, p.y - z.y) < z.r);
     if (onIce) {
-      const ease = 1 - Math.pow(0.002, dt); // dtに関わらず一定の滑らかさになる指数補間
+      // dtに関わらず一定の滑らかさになる指数補間。iceSlipperinessが大きいほど滑りやすくなる
+      const ease = Math.min(1, (1 - Math.pow(0.002, dt)) / Math.max(iceSlipperiness, 0.1));
       p.velX += (targetVelX - p.velX) * ease;
       p.velY += (targetVelY - p.velY) * ease;
     } else {
@@ -1537,7 +1644,7 @@ setInterval(() => {
       for (const hz of hazardZones) {
         const d = Math.hypot(p.x - hz.x, p.y - hz.y);
         if (d < hz.r) {
-          p.mass = Math.max(0, p.mass - 8 * dt);
+          p.mass = Math.max(0, p.mass - hazardDamagePerSec * dt);
         }
       }
       // 重力井戸: 範囲内にいる間、弱く中心へ引き寄せられる
@@ -1546,7 +1653,7 @@ setInterval(() => {
           const dx = gw.x - p.x, dy = gw.y - p.y;
           const d = Math.hypot(dx, dy);
           if (d < gw.r && d > 1) {
-            const pull = gw.strength * dt;
+            const pull = gw.strength * gravityStrengthMultiplier * dt;
             p.x += (dx / d) * pull;
             p.y += (dy / d) * pull;
           }
@@ -1769,7 +1876,7 @@ setInterval(() => {
         const d = Math.hypot(dx, dy);
         const minDist = a.radius + b.radius;
         if (d < minDist && d > 0.001) {
-          const push = (minDist - d) * 0.5;
+          const push = (minDist - d) * 0.5 * knockbackStrength;
           const nx = dx / d, ny = dy / d;
           const aPush = bBoosted ? push * 1.4 : push * 0.6;
           const bPush = aBoosted ? push * 1.4 : push * 0.6;
@@ -1851,7 +1958,37 @@ setInterval(() => {
     storm,
     goldenFood: goldenFood ? { x: goldenFood.x, y: goldenFood.y } : null,
     globalSpeedMultiplier,
-    worldSizeOverride
+    worldSizeOverride,
+    params: {
+      foodGrowth: FOOD_GROWTH,
+      maxSpeed: MAX_SPEED,
+      respawnInvulnMs: RESPAWN_INVULN_MS,
+      emoteCooldownMs: EMOTE_COOLDOWN_MS,
+      maxCheatMass: MAX_PLAYER_CHEAT_MASS,
+      boostCostRatio: BOOST_COST_RATIO,
+      boostDurationMs: BOOST_DURATION_MS,
+      boostCooldownMs: BOOST_COOLDOWN_MS,
+      boostSpeedMultiplier: BOOST_SPEED_MULTIPLIER,
+      goldenFoodGrowth: GOLDEN_FOOD_GROWTH,
+      goldenFoodLifetimeMs: GOLDEN_FOOD_LIFETIME_MS,
+      goldenFoodIntervalMinMs: GOLDEN_FOOD_INTERVAL_MIN_MS,
+      goldenFoodIntervalMaxMs: GOLDEN_FOOD_INTERVAL_MAX_MS,
+      itemMaxCount: ITEM_MAX_COUNT,
+      itemSpawnIntervalMs: ITEM_SPAWN_INTERVAL_MS,
+      enabledItemTypes: Array.from(enabledItemTypes),
+      hazardDamagePerSec,
+      iceSlipperiness,
+      gravityStrengthMultiplier,
+      knockbackStrength,
+      stormDamagePerSec: STORM_DAMAGE_PER_SEC,
+      kothScoreRate: KOTH_SCORE_PER_SEC,
+      obstacleCount,
+      hazardCount,
+      iceCount,
+      gravityCount,
+      joinLocked,
+      maxPlayers
+    }
   };
   io.emit('state', state);
 }, TICK_MS);
