@@ -1095,10 +1095,44 @@ io.on('connection', (socket) => {
 });
 
 // ===== BOTのAI思考 =====
+// バトルロイヤルの縮小する安全地帯(ストーム)の現在の円を計算する。
+// メインループとBOT AIの両方から呼ばれるので、ここを1箇所にまとめておくことで
+// 新しくモードやギミックを足すときもBOT側の対応漏れが起きにくくなる。
+function getStormState(now) {
+  if (gameMode !== 'battle_royale') return null;
+  const roundStartTime = roundEndTime - roundDurationMs;
+  const progress = (roundState === 'active' && roundDurationMs > 0)
+    ? Math.min(1, Math.max(0, (now - roundStartTime) / roundDurationMs))
+    : 0;
+  const maxR = WORLD_SIZE * 0.48;
+  const minR = Math.max(200, WORLD_SIZE * 0.08);
+  return {
+    x: WORLD_SIZE / 2,
+    y: WORLD_SIZE / 2,
+    r: maxR - (maxR - minR) * progress
+  };
+}
+
 function computeBotAI(now) {
   const list = Array.from(players.values());
+  // バトルロイヤルの安全地帯(ストーム)を先に取得しておく。他モードではnullになるだけなので無害。
+  const storm = getStormState(now);
+  const STORM_RETURN_MARGIN = 80; // 縮小円の際に来た時点で早めに中心へ戻り始める余裕
+
   for (const bot of list) {
     if (!bot.isBot || !bot.alive) continue;
+
+    // バトルロイヤルで安全地帯の外(または際)にいる場合は、生存のため中心へ戻ることを最優先にする
+    let outsideStorm = false;
+    let stormDx = 0, stormDy = 0;
+    if (storm && roundState === 'active') {
+      const sd = Math.hypot(bot.x - storm.x, bot.y - storm.y);
+      if (sd > storm.r - STORM_RETURN_MARGIN) {
+        outsideStorm = true;
+        stormDx = storm.x - bot.x;
+        stormDy = storm.y - bot.y;
+      }
+    }
 
     let threat = null, threatDist = Infinity;
     let prey = null, preyDist = Infinity;
@@ -1132,7 +1166,16 @@ function computeBotAI(now) {
     }
 
     let dx = 0, dy = 0;
-    if (threat) {
+    if (outsideStorm) {
+      // 安全地帯の外(または際)にいる間は、まず中心へ戻ることを最優先にする
+      dx = stormDx;
+      dy = stormDy;
+      // 至近距離に天敵がいれば、逃げる方向も少し混ぜて無防備に突っ込まないようにする
+      if (threat) {
+        dx += (bot.x - threat.x) * 0.5;
+        dy += (bot.y - threat.y) * 0.5;
+      }
+    } else if (threat) {
       // 天敵から逃げる(全モード共通)
       dx = bot.x - threat.x;
       dy = bot.y - threat.y;
@@ -1200,7 +1243,7 @@ function computeBotAI(now) {
     bot.dirY = dirY;
 
     // BOTのパワーアップ使用(天敵から逃走中は必ず、獲物を追跡中はまれに使う)
-    tryBotBoost(bot, now, !!threat, !!prey && bot.aiMode !== 'passive');
+    tryBotBoost(bot, now, outsideStorm || !!threat, !!prey && bot.aiMode !== 'passive');
   }
 }
 
@@ -1314,26 +1357,13 @@ setInterval(() => {
   }
 
   // ===== バトルロイヤル: 縮小する安全地帯の外にいるとダメージ =====
-  let storm = null;
-  if (gameMode === 'battle_royale') {
-    const roundStartTime = roundEndTime - roundDurationMs;
-    const progress = (roundState === 'active' && roundDurationMs > 0)
-      ? Math.min(1, Math.max(0, (now - roundStartTime) / roundDurationMs))
-      : 0;
-    const maxR = WORLD_SIZE * 0.48;
-    const minR = Math.max(200, WORLD_SIZE * 0.08);
-    storm = {
-      x: WORLD_SIZE / 2,
-      y: WORLD_SIZE / 2,
-      r: maxR - (maxR - minR) * progress
-    };
-    if (roundState === 'active') {
-      for (const p of players.values()) {
-        if (!p.alive) continue;
-        const d = Math.hypot(p.x - storm.x, p.y - storm.y);
-        if (d > storm.r) {
-          p.mass = Math.max(0, p.mass - STORM_DAMAGE_PER_SEC * dt);
-        }
+  const storm = getStormState(now);
+  if (storm && roundState === 'active') {
+    for (const p of players.values()) {
+      if (!p.alive) continue;
+      const d = Math.hypot(p.x - storm.x, p.y - storm.y);
+      if (d > storm.r) {
+        p.mass = Math.max(0, p.mass - STORM_DAMAGE_PER_SEC * dt);
       }
     }
   }
