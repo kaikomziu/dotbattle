@@ -27,6 +27,18 @@ html, body {
   align-items: center;
   justify-content: center;
   background: radial-gradient(circle at 50% 30%, #1c2740 0%, #0e1420 70%);
+  position: relative;
+}
+
+/* ヒミツのタップ判定エリア(隅にひっそり配置、見た目にはほぼ影響しない) */
+#secretHotspot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 64px;
+  height: 64px;
+  cursor: default;
+  z-index: 3;
 }
 
 .lobby-box {

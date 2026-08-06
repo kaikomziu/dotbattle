@@ -11,6 +11,7 @@
   const canvas = document.getElementById('canvas');
   const ctx = canvas.getContext('2d');
   const scoreVal = document.getElementById('scoreVal');
+  const scoreBox = document.getElementById('scoreBox');
   const leaderboard = document.getElementById('leaderboard');
   const deathMsg = document.getElementById('deathMsg');
   const deathText = document.getElementById('deathText');
@@ -251,12 +252,24 @@
     { id: 'hidden_daikichi', icon: '🎍', title: '強運の持ち主', desc: '???', hint: 'おみくじで大吉を引いた', cat: '🎭 隠し要素' },
     { id: 'hidden_retro', icon: '💾', title: '懐古厨', desc: '???', hint: '懐かしのホームページ風・隠しページを見つけた', cat: '🎭 隠し要素' },
     { id: 'hidden_tos', icon: '📜', title: '規約は読む派', desc: '???', hint: '謎の利用規約ページを最後まで読んだ', cat: '🎭 隠し要素' },
-    { id: 'hidden_konami', icon: '🕹️', title: 'コマンド入力の達人', desc: '???', hint: 'ロビーで例のコマンドを入力した(↑↑↓↓←→←→BA)', cat: '🎭 隠し要素' },
+    { id: 'hidden_konami', icon: '🕹️', title: 'コマンド入力の達人', desc: '???', hint: 'ロビーで例のコマンドを入力した(PC:↑↑↓↓←→←→BA / スマホ:同じ向きに8回スワイプ→ダブルタップ)', cat: '🎭 隠し要素' },
     { id: 'hidden_logotap', icon: '👆', title: 'タップの魔術師', desc: '???', hint: 'ロビーのタイトルを連打した', cat: '🎭 隠し要素' },
     { id: 'hidden_midnight', icon: '🌙', title: '深夜の住人', desc: '???', hint: '深夜2時〜4時にプレイに参加した', cat: '🎭 隠し要素' },
+    { id: 'hidden_namecode', icon: '🍬', title: '秘密のコードネーム', desc: '???', hint: '特定の名前で参加した', cat: '🎭 隠し要素' },
+    { id: 'hidden_longpress', icon: '🖐️', title: '我慢比べ', desc: '???', hint: 'スコア表示を長押しした', cat: '🎭 隠し要素' },
+    { id: 'hidden_secretroom', icon: '🎁', title: 'ヒミツの部屋', desc: '???', hint: 'ロビーの隅を連続でタップした', cat: '🎭 隠し要素' },
+    { id: 'hidden_emotecombo', icon: '🎭', title: '感情のフルコース', desc: '???', hint: '絵文字を表示順にすべて使った', cat: '🎭 隠し要素' },
+    { id: 'hidden_minimap', icon: '🔭', title: 'ミニマップ凝視', desc: '???', hint: 'ミニマップを連続でタップした', cat: '🎭 隠し要素' },
+    { id: 'hidden_leaderboard', icon: '📋', title: '本当の実力者', desc: '???', hint: 'ランキング表示を連続でタップした', cat: '🎭 隠し要素' },
+    { id: 'hidden_afk', icon: '🗿', title: '置物', desc: '???', hint: '30秒間まったく動かなかった', cat: '🎭 隠し要素' },
+    { id: 'hidden_adminname', icon: '🕵️', title: 'なりすまし未遂', desc: '???', hint: '管理者っぽい名前でログインを試みた', cat: '🎭 隠し要素' },
     { id: 'hidden_allsecrets', icon: '🗝️', title: 'すべてを見た者', desc: '???', hint: '隠し要素の実績をすべて解除した', cat: '🎭 隠し要素' }
   ];
-  const HIDDEN_SECRET_IDS = ['hidden_stats', 'hidden_credits', 'hidden_omikuji', 'hidden_daikichi', 'hidden_retro', 'hidden_tos', 'hidden_konami', 'hidden_logotap', 'hidden_midnight'];
+  const HIDDEN_SECRET_IDS = [
+    'hidden_stats', 'hidden_credits', 'hidden_omikuji', 'hidden_daikichi', 'hidden_retro', 'hidden_tos',
+    'hidden_konami', 'hidden_logotap', 'hidden_midnight', 'hidden_namecode', 'hidden_longpress',
+    'hidden_secretroom', 'hidden_emotecombo', 'hidden_minimap', 'hidden_leaderboard', 'hidden_afk', 'hidden_adminname'
+  ];
 
   function unlockAchievement(id) {
     if (achievementUnlocked[id]) return;
@@ -551,6 +564,7 @@
       loginMsg.textContent = 'ユーザー名とパスワードを入力してください';
       return;
     }
+    checkAdminLikeName(username);
     socket.emit('login', { username, password });
   }
   loginSubmitBtn.addEventListener('click', submitLogin);
@@ -581,6 +595,7 @@
       registerMsg.textContent = 'パスワードが一致しません';
       return;
     }
+    checkAdminLikeName(username);
     socket.emit('register', { username, password });
   }
   registerSubmitBtn.addEventListener('click', submitRegister);
@@ -744,6 +759,178 @@
       }
     });
   }
+
+  // ----- スマホ用: スワイプでコナミコマンド相当(同じ8方向スワイプ+ダブルタップで完了) -----
+  const SWIPE_KONAMI_SEQUENCE = ['up', 'up', 'down', 'down', 'left', 'right', 'left', 'right'];
+  let swipeProgress = 0;
+  let swipeStartX = 0, swipeStartY = 0, swipeStartT = 0;
+  let swipeLastTapAt = 0;
+  let swipeTapCount = 0;
+  window.addEventListener('touchstart', (e) => {
+    if (!e.touches || e.touches.length !== 1) return;
+    swipeStartX = e.touches[0].clientX;
+    swipeStartY = e.touches[0].clientY;
+    swipeStartT = Date.now();
+  }, { passive: true });
+  window.addEventListener('touchend', (e) => {
+    const touch = e.changedTouches && e.changedTouches[0];
+    if (!touch) return;
+    const dt = Date.now() - swipeStartT;
+    const dx = touch.clientX - swipeStartX;
+    const dy = touch.clientY - swipeStartY;
+    const dist = Math.hypot(dx, dy);
+
+    // コマンド入力完了後は、素早い2回タップで確定(キーボード版のB,Aに相当)
+    if (swipeProgress === SWIPE_KONAMI_SEQUENCE.length) {
+      if (dist < 24 && dt < 350) {
+        const now = Date.now();
+        swipeTapCount = (now - swipeLastTapAt < 500) ? swipeTapCount + 1 : 1;
+        swipeLastTapAt = now;
+        if (swipeTapCount >= 2) {
+          swipeProgress = 0;
+          swipeTapCount = 0;
+          unlockAchievement('hidden_konami');
+          if (settings.particlesEnabled) spawnConfettiAtScreenCenter();
+          playSound('round');
+        }
+        return;
+      }
+      swipeProgress = 0;
+      return;
+    }
+
+    if (dist < 40 || dt > 800) return; // 小さすぎる/遅すぎる操作は無視(進行はリセットしない)
+
+    const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+    if (dir === SWIPE_KONAMI_SEQUENCE[swipeProgress]) {
+      swipeProgress++;
+    } else {
+      swipeProgress = (dir === SWIPE_KONAMI_SEQUENCE[0]) ? 1 : 0;
+    }
+  }, { passive: true });
+
+  // ----- 秘密のコードネームで参加(隠し名前) -----
+  const SECRET_NAME = 'ぱっくん';
+  let secretRainbowSkin = false;
+  function checkSecretName(name) {
+    if (!name) return;
+    if (name.trim() === SECRET_NAME) {
+      if (!secretRainbowSkin) {
+        secretRainbowSkin = true;
+        unlockAchievement('hidden_namecode');
+        if (settings.particlesEnabled) spawnConfettiAtScreenCenter();
+      }
+    }
+  }
+
+  // ----- 管理者っぽい名前でログイン/登録を試す(ジョーク実績) -----
+  const ADMIN_LIKE_NAMES = ['admin', '管理者', 'administrator', 'root', 'karwak'];
+  function checkAdminLikeName(name) {
+    if (!name) return;
+    if (ADMIN_LIKE_NAMES.includes(name.trim().toLowerCase())) {
+      unlockAchievement('hidden_adminname');
+    }
+  }
+
+  // ----- スコア表示の長押し(PC:マウス / スマホ:タッチ 両対応、2秒) -----
+  let longPressTimer = null;
+  function startLongPress() {
+    clearTimeout(longPressTimer);
+    longPressTimer = setTimeout(() => {
+      unlockAchievement('hidden_longpress');
+      if (settings.particlesEnabled) spawnConfettiAtScreenCenter();
+    }, 2000);
+  }
+  function cancelLongPress() {
+    clearTimeout(longPressTimer);
+  }
+  if (scoreBox) {
+    scoreBox.addEventListener('mousedown', startLongPress);
+    scoreBox.addEventListener('mouseup', cancelLongPress);
+    scoreBox.addEventListener('mouseleave', cancelLongPress);
+    scoreBox.addEventListener('touchstart', startLongPress, { passive: true });
+    scoreBox.addEventListener('touchend', cancelLongPress, { passive: true });
+    scoreBox.addEventListener('touchcancel', cancelLongPress, { passive: true });
+  }
+
+  // ----- ロビー隅のヒミツのタップ判定(3回連続タップ/クリックで発動、URL不要のページ的な発見) -----
+  const secretHotspot = document.getElementById('secretHotspot');
+  const secretRoomModal = document.getElementById('secretRoomModal');
+  const secretRoomCloseBtn = document.getElementById('secretRoomCloseBtn');
+  let hotspotTapTimes = [];
+  if (secretHotspot) {
+    secretHotspot.addEventListener('click', () => {
+      const now = Date.now();
+      hotspotTapTimes.push(now);
+      hotspotTapTimes = hotspotTapTimes.filter(t => now - t <= 2500);
+      if (hotspotTapTimes.length >= 3) {
+        hotspotTapTimes = [];
+        unlockAchievement('hidden_secretroom');
+        secretRoomModal.classList.remove('hidden');
+        if (settings.particlesEnabled) spawnConfettiAtScreenCenter();
+      }
+    });
+  }
+  if (secretRoomCloseBtn) {
+    secretRoomCloseBtn.addEventListener('click', () => secretRoomModal.classList.add('hidden'));
+  }
+  if (secretRoomModal) {
+    secretRoomModal.addEventListener('click', (e) => { if (e.target === secretRoomModal) secretRoomModal.classList.add('hidden'); });
+  }
+
+  // ----- 絵文字コンボ(表示順どおりに😂😭😡🔥👍💀を押す) -----
+  const EMOTE_COMBO_SEQUENCE = ['laugh', 'cry', 'angry', 'fire', 'thumbsup', 'skull'];
+  let emoteComboProgress = [];
+  let emoteComboTimer = null;
+  function trackEmoteCombo(type) {
+    emoteComboProgress.push(type);
+    if (emoteComboProgress.length > EMOTE_COMBO_SEQUENCE.length) {
+      emoteComboProgress = emoteComboProgress.slice(-EMOTE_COMBO_SEQUENCE.length);
+    }
+    if (emoteComboTimer) clearTimeout(emoteComboTimer);
+    emoteComboTimer = setTimeout(() => { emoteComboProgress = []; }, 8000);
+    if (emoteComboProgress.length === EMOTE_COMBO_SEQUENCE.length &&
+        emoteComboProgress.every((t, i) => t === EMOTE_COMBO_SEQUENCE[i])) {
+      emoteComboProgress = [];
+      unlockAchievement('hidden_emotecombo');
+      if (settings.particlesEnabled) spawnConfettiAtScreenCenter();
+      playSound('round');
+    }
+  }
+
+  // ----- ミニマップの連続タップ -----
+  let minimapTapTimes = [];
+  minimapCanvas.addEventListener('click', () => {
+    const now = Date.now();
+    minimapTapTimes.push(now);
+    minimapTapTimes = minimapTapTimes.filter(t => now - t <= 2000);
+    if (minimapTapTimes.length >= 4) {
+      minimapTapTimes = [];
+      unlockAchievement('hidden_minimap');
+    }
+  });
+
+  // ----- ランキング表示の連続タップ(HUDは毎フレーム再描画されるためイベント委譲で監視) -----
+  let leaderboardTapTimes = [];
+  leaderboard.addEventListener('click', (e) => {
+    if (!e.target.closest('h3')) return;
+    const now = Date.now();
+    leaderboardTapTimes.push(now);
+    leaderboardTapTimes = leaderboardTapTimes.filter(t => now - t <= 2000);
+    if (leaderboardTapTimes.length >= 4) {
+      leaderboardTapTimes = [];
+      unlockAchievement('hidden_leaderboard');
+    }
+  });
+
+  // ----- 30秒間ノーアクションで「置物」実績(移動もパワーアップも絵文字も一切なし) -----
+  let lastActionAt = Date.now();
+  function markActivity() { lastActionAt = Date.now(); }
+  setInterval(() => {
+    if (joined && !spectating && Date.now() - lastActionAt >= 30000) {
+      unlockAchievement('hidden_afk');
+    }
+  }, 2000);
 
   function openSettingsModal() {
     refreshSettingsButtons();
@@ -1301,6 +1488,8 @@
   function doGuestJoin() {
     const name = nameInput.value.trim() || 'プレイヤー' + Math.floor(Math.random() * 1000);
     try { localStorage.setItem('dotbattle_guest_name', name); } catch (e) { /* noop */ }
+    checkSecretName(name);
+    checkAdminLikeName(name);
     socket.emit('join', { name });
   }
   // ログイン中ならアカウントで、ゲストならゲストとして(再)参加する
@@ -1340,6 +1529,7 @@
       socket.emit('useBoost');
       if (latestState.effectsEnabled) playSound('boost');
       registerBoostUsed();
+      markActivity();
     }
   });
   window.addEventListener('keydown', (e) => {
@@ -1348,6 +1538,7 @@
       socket.emit('useBoost');
       if (latestState.effectsEnabled) playSound('boost');
       registerBoostUsed();
+      markActivity();
     }
   });
 
@@ -1357,6 +1548,8 @@
     if (joined && !spectating) {
       socket.emit('emote', { type });
       unlockAchievement('emote_used');
+      markActivity();
+      trackEmoteCombo(type);
     }
   }
   emoteBar.addEventListener('click', (e) => {
@@ -1835,8 +2028,10 @@
     if (settings.wasdEnabled && keysPressed.size > 0) {
       const kd = computeKeyboardDir();
       socket.emit('input', { dx: kd.dx, dy: kd.dy });
+      if (kd.dx !== 0 || kd.dy !== 0) markActivity();
     } else {
       socket.emit('input', { dx: dirX, dy: dirY });
+      if (dirX !== 0 || dirY !== 0) markActivity();
     }
   }, 50);
 
