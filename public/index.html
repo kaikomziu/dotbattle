@@ -475,6 +475,35 @@
         </div>
       </div>
 
+      <div class="admin-section cheat-section">
+        <h4>😈 チート機能(全体)</h4>
+        <p class="admin-note">個人向けのチート(最大化・即死・ワープ等)は下の一覧の各プレイヤー欄から使えます</p>
+        <div class="admin-row">
+          <button id="cheatGodModeAllBtn" class="cheat-btn">🌈 全員無敵ON</button>
+          <button id="cheatGodModeOffAllBtn" class="cheat-btn">🌈 全員無敵OFF</button>
+        </div>
+        <div class="admin-row">
+          <button id="cheatKillAllBtn" class="cheat-btn danger">☠️ 全員即death</button>
+          <button id="cheatClearFoodBtn" class="cheat-btn">🧹 エサ全消去</button>
+        </div>
+        <div class="admin-row">
+          <button id="cheatGoldenFoodBtn" class="cheat-btn">🌟 ゴールデンフード出現</button>
+        </div>
+        <div class="admin-row">
+          <input id="cheatSpeedInput" type="number" min="0.3" max="3" step="0.1" placeholder="速度倍率(0.3〜3)" />
+          <button id="cheatSpeedApplyBtn" class="cheat-btn">適用</button>
+        </div>
+        <p id="cheatSpeedStatus" class="admin-note">現在の速度倍率: 1.0倍</p>
+        <div class="admin-row">
+          <input id="cheatWorldSizeInput" type="number" min="2000" max="9000" step="100" placeholder="ワールドサイズを固定" />
+          <button id="cheatWorldSizeApplyBtn" class="cheat-btn">固定</button>
+        </div>
+        <div class="admin-row">
+          <button id="cheatWorldSizeAutoBtn">🔄 自動調整に戻す</button>
+        </div>
+        <p id="cheatWorldSizeStatus" class="admin-note">現在: 自動調整</p>
+      </div>
+
       <div class="admin-section">
         <h4>プレイヤー / BOT 一覧</h4>
         <div id="adminPlayerList" class="admin-list"></div>

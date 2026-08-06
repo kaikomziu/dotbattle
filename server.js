@@ -113,6 +113,9 @@ const GOLDEN_FOOD_LIFETIME_MS = 22000;   // 放置されると消える
 const GOLDEN_FOOD_INTERVAL_MIN_MS = 40000;
 const GOLDEN_FOOD_INTERVAL_MAX_MS = 80000;
 
+// ===== 管理者チート =====
+const MAX_PLAYER_CHEAT_MASS = 20000; // 「最大化」チートで即座に到達するスコア
+
 // ===== パワーアップ(自分のスコアを消費するスピードブースト) =====
 const BOOST_COST_RATIO = 0.15;    // 現在スコアのこの割合を消費
 const BOOST_COST_MIN = 15;        // 最低消費コスト
@@ -259,6 +262,10 @@ const TEAM_IDS = ['red', 'blue'];
 let itemsEnabled = true;     // ランダムアイテム
 let gimmicksEnabled = true;  // マップギミック(障害物/危険地帯/ワープ)
 let effectsEnabled = true;   // 演出(パーティクル・画面揺れ・効果音)。キルフィードは常時表示
+
+// ===== 管理者チート機能用のグローバル状態 =====
+let globalSpeedMultiplier = 1;   // 全員の移動速度倍率(管理者チート、0.3〜3倍)
+let worldSizeOverride = null;    // nullなら自動調整、数値なら管理者がその広さに固定する
 
 // ===== ランダムアイテム =====
 const ITEM_TYPES = ['speed', 'shield', 'magnet', 'giant', 'mystery'];
@@ -451,6 +458,8 @@ class Player {
     this.killStreak = 0;         // 連続撃破数(一定時間空くとリセット)
     this.lastKillAt = 0;
     this.lastEmoteAt = 0;        // 絵文字タウントの連投防止
+    this.noclip = false;         // 管理者チート: 障害物をすり抜ける
+    this.infiniteBoost = false;  // 管理者チート: パワーアップのコスト・クールダウン無視
   }
 
   get radius() {
@@ -492,6 +501,21 @@ class Bot extends Player {
 
 function isAdmin(socket) {
   return adminSockets.has(socket.id);
+}
+
+// 管理者チートで特定プレイヤーを即座に退場させる(誰にもスコアは渡らない、通常の捕食とは別扱い)
+function adminEliminate(p, reasonLabel) {
+  if (!p || !p.alive) return;
+  p.alive = false;
+  globalStats.totalDeaths += 1;
+  saveGlobalStats();
+  io.to(p.id).emit('eaten', { by: reasonLabel || '管理者の力' });
+  io.emit('feedEvent', {
+    kind: 'kill',
+    text: `⚡ ${p.name} が管理者チートで退場させられた`,
+    x: p.x,
+    y: p.y
+  });
 }
 
 // プレイヤー/BOTの人数・最大サイズ・合計質量からワールドの「あるべき広さ」を見積もる
@@ -806,6 +830,12 @@ io.on('connection', (socket) => {
   socket.on('useBoost', () => {
     if (!player || !player.alive) return;
     const now = Date.now();
+    if (player.infiniteBoost) {
+      // 管理者チートでコスト・クールダウン無視の無限ブーストが有効なプレイヤー
+      player.boostUntil = now + BOOST_DURATION_MS;
+      player.boostCooldownUntil = now;
+      return;
+    }
     if (now < player.boostCooldownUntil) return; // クールダウン中
     const cost = Math.max(BOOST_COST_MIN, Math.round(player.mass * BOOST_COST_RATIO));
     if (player.mass < cost) return; // スコアが足りない
@@ -952,6 +982,103 @@ io.on('connection', (socket) => {
     for (const p of players.values()) {
       p.respawn();
     }
+  });
+
+  // ============================================================
+  // ===== 管理者チート機能(個人向け) =====
+  // ============================================================
+  socket.on('admin:maxPlayer', (data) => {
+    if (!isAdmin(socket)) return;
+    const p = players.get(data && data.id);
+    if (!p || !p.alive) return;
+    p.mass = MAX_PLAYER_CHEAT_MASS;
+    p.shieldUntil = Date.now() + 8000;
+    io.emit('feedEvent', { kind: 'item', text: `⚡ ${p.name} が管理者チートで最大化した!`, x: p.x, y: p.y });
+  });
+
+  socket.on('admin:instaKill', (data) => {
+    if (!isAdmin(socket)) return;
+    const p = players.get(data && data.id);
+    adminEliminate(p, '管理者の力');
+  });
+
+  socket.on('admin:killAll', () => {
+    if (!isAdmin(socket)) return;
+    for (const p of players.values()) {
+      if (p.alive) adminEliminate(p, '管理者の力');
+    }
+  });
+
+  socket.on('admin:teleportRandom', (data) => {
+    if (!isAdmin(socket)) return;
+    const p = players.get(data && data.id);
+    if (!p || !p.alive) return;
+    p.x = rand(200, WORLD_SIZE - 200);
+    p.y = rand(200, WORLD_SIZE - 200);
+  });
+
+  socket.on('admin:toggleNoclip', (data) => {
+    if (!isAdmin(socket)) return;
+    const p = players.get(data && data.id);
+    if (p) p.noclip = !p.noclip;
+  });
+
+  socket.on('admin:toggleInfiniteBoost', (data) => {
+    if (!isAdmin(socket)) return;
+    const p = players.get(data && data.id);
+    if (p) p.infiniteBoost = !p.infiniteBoost;
+  });
+
+  socket.on('admin:renamePlayer', (data) => {
+    if (!isAdmin(socket)) return;
+    const p = players.get(data && data.id);
+    if (!p) return;
+    const name = (data && data.name || '').toString().trim().slice(0, 12);
+    if (!name) return;
+    p.name = name;
+  });
+
+  socket.on('admin:recolorPlayer', (data) => {
+    if (!isAdmin(socket)) return;
+    const p = players.get(data && data.id);
+    if (p) p.color = randomColor();
+  });
+
+  // ============================================================
+  // ===== 管理者チート機能(全体向け) =====
+  // ============================================================
+  socket.on('admin:setGlobalGodMode', (data) => {
+    if (!isAdmin(socket)) return;
+    const on = !!(data && data.on);
+    for (const p of players.values()) p.godMode = on;
+  });
+
+  socket.on('admin:clearFood', () => {
+    if (!isAdmin(socket)) return;
+    food = [];
+  });
+
+  socket.on('admin:forceGoldenFood', () => {
+    if (!isAdmin(socket)) return;
+    spawnGoldenFood();
+  });
+
+  socket.on('admin:setGlobalSpeedMultiplier', (data) => {
+    if (!isAdmin(socket)) return;
+    const m = Number(data && data.multiplier);
+    if (!isFinite(m)) return;
+    globalSpeedMultiplier = Math.max(0.3, Math.min(3, m));
+  });
+
+  socket.on('admin:setWorldSizeOverride', (data) => {
+    if (!isAdmin(socket)) return;
+    if (data && data.clear) {
+      worldSizeOverride = null;
+      return;
+    }
+    const size = Number(data && data.size);
+    if (!isFinite(size)) return;
+    worldSizeOverride = Math.max(WORLD_SIZE_MIN, Math.min(WORLD_SIZE_MAX, size));
   });
 
   socket.on('admin:broadcast', (data) => {
@@ -1249,6 +1376,14 @@ function computeBotAI(now) {
 
 // BOTにパワーアップ(スピードブースト)を使わせるかどうかを判断する
 function tryBotBoost(bot, now, urgent, chasing) {
+  if (bot.infiniteBoost) {
+    // 管理者チートでBOTに無限ブーストを付与している場合(コスト・クールダウン無視)
+    if (urgent || chasing || Math.random() < 0.2) {
+      bot.boostUntil = now + BOOST_DURATION_MS;
+      bot.boostCooldownUntil = now;
+    }
+    return;
+  }
   if (now < bot.boostCooldownUntil) return;
   const cost = Math.max(BOOST_COST_MIN, Math.round(bot.mass * BOOST_COST_RATIO));
   if (bot.mass < cost) return;
@@ -1276,8 +1411,8 @@ setInterval(() => {
     finishRound();
   }
 
-  // プレイヤーの人数・サイズに応じてワールドサイズを緩やかに自動調整
-  const desiredWorldSize = computeDesiredWorldSize();
+  // プレイヤーの人数・サイズに応じてワールドサイズを緩やかに自動調整(管理者が固定値を指定している場合はそれを優先)
+  const desiredWorldSize = worldSizeOverride !== null ? worldSizeOverride : computeDesiredWorldSize();
   WORLD_SIZE += (desiredWorldSize - WORLD_SIZE) * 0.01;
 
   // プレイヤー移動
@@ -1286,7 +1421,7 @@ setInterval(() => {
     if (p.frozen) continue; // 管理者に凍結されている場合は動かない
     const infectedSpeedBonus = (gameMode === 'infection' && p.infected) ? 1.15 : 1;
     const boostMultiplier = now < p.boostUntil ? BOOST_SPEED_MULTIPLIER : 1;
-    const speed = Math.max(MAX_SPEED * (BASE_RADIUS / p.radius), 60) * boostMultiplier * infectedSpeedBonus;
+    const speed = Math.max(MAX_SPEED * (BASE_RADIUS / p.radius), 60) * boostMultiplier * infectedSpeedBonus * globalSpeedMultiplier;
     p.x += p.dirX * speed * dt;
     p.y += p.dirY * speed * dt;
     p.x = Math.max(p.radius, Math.min(WORLD_SIZE - p.radius, p.x));
@@ -1297,6 +1432,7 @@ setInterval(() => {
   if (gimmicksEnabled) {
     for (const p of players.values()) {
       if (!p.alive) continue;
+      if (p.noclip) continue; // 管理者チート: 障害物・危険地帯・ワープホールをすべて無視してすり抜ける
       // 障害物: めり込んだ分だけ押し出す
       for (const ob of obstacles) {
         const dx = p.x - ob.x, dy = p.y - ob.y;
@@ -1551,7 +1687,9 @@ setInterval(() => {
       magnet: p.magnetUntil > now,
       infected: !!p.infected,
       hillScore: Math.round(p.hillScore || 0),
-      killStreak: (now - p.lastKillAt <= STREAK_TIMEOUT_MS) ? p.killStreak : 0
+      killStreak: (now - p.lastKillAt <= STREAK_TIMEOUT_MS) ? p.killStreak : 0,
+      noclip: !!p.noclip,
+      infiniteBoost: !!p.infiniteBoost
     })),
     food: food.map(f => ({ id: f.id, x: f.x, y: f.y, color: f.color })),
     foodCount: FOOD_COUNT,
@@ -1573,7 +1711,9 @@ setInterval(() => {
     warpHoles,
     kothHill,
     storm,
-    goldenFood: goldenFood ? { x: goldenFood.x, y: goldenFood.y } : null
+    goldenFood: goldenFood ? { x: goldenFood.x, y: goldenFood.y } : null,
+    globalSpeedMultiplier,
+    worldSizeOverride
   };
   io.emit('state', state);
 }, TICK_MS);

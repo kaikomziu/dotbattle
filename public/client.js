@@ -63,6 +63,20 @@
   const toggleItemsBtn = document.getElementById('toggleItemsBtn');
   const toggleGimmicksBtn = document.getElementById('toggleGimmicksBtn');
   const toggleEffectsBtn = document.getElementById('toggleEffectsBtn');
+
+  // 管理者チート機能(全体)関連の要素
+  const cheatGodModeAllBtn = document.getElementById('cheatGodModeAllBtn');
+  const cheatGodModeOffAllBtn = document.getElementById('cheatGodModeOffAllBtn');
+  const cheatKillAllBtn = document.getElementById('cheatKillAllBtn');
+  const cheatClearFoodBtn = document.getElementById('cheatClearFoodBtn');
+  const cheatGoldenFoodBtn = document.getElementById('cheatGoldenFoodBtn');
+  const cheatSpeedInput = document.getElementById('cheatSpeedInput');
+  const cheatSpeedApplyBtn = document.getElementById('cheatSpeedApplyBtn');
+  const cheatSpeedStatus = document.getElementById('cheatSpeedStatus');
+  const cheatWorldSizeInput = document.getElementById('cheatWorldSizeInput');
+  const cheatWorldSizeApplyBtn = document.getElementById('cheatWorldSizeApplyBtn');
+  const cheatWorldSizeAutoBtn = document.getElementById('cheatWorldSizeAutoBtn');
+  const cheatWorldSizeStatus = document.getElementById('cheatWorldSizeStatus');
   const killFeed = document.getElementById('killFeed');
   const helpOpenBtn = document.getElementById('helpOpenBtn');
   const helpGameBtn = document.getElementById('helpGameBtn');
@@ -1914,6 +1928,15 @@
     setToggleBtn(toggleItemsBtn, latestState.itemsEnabled, 'アイテム');
     setToggleBtn(toggleGimmicksBtn, latestState.gimmicksEnabled, 'ギミック');
     setToggleBtn(toggleEffectsBtn, latestState.effectsEnabled, '演出/効果音');
+    if (cheatSpeedStatus) {
+      const m = typeof latestState.globalSpeedMultiplier === 'number' ? latestState.globalSpeedMultiplier : 1;
+      cheatSpeedStatus.textContent = `現在の速度倍率: ${m.toFixed(1)}倍`;
+    }
+    if (cheatWorldSizeStatus) {
+      cheatWorldSizeStatus.textContent = (latestState.worldSizeOverride != null)
+        ? `現在: ${Math.round(latestState.worldSizeOverride)} に固定中`
+        : '現在: 自動調整';
+    }
   }
   function setToggleBtn(btn, enabled, label) {
     if (!btn) return;
@@ -1930,6 +1953,40 @@
   toggleEffectsBtn.addEventListener('click', () => {
     socket.emit('admin:setEffectsEnabled', { enabled: !latestState.effectsEnabled });
   });
+
+  // ===== チート機能(全体) =====
+  if (cheatGodModeAllBtn) {
+    cheatGodModeAllBtn.addEventListener('click', () => socket.emit('admin:setGlobalGodMode', { on: true }));
+  }
+  if (cheatGodModeOffAllBtn) {
+    cheatGodModeOffAllBtn.addEventListener('click', () => socket.emit('admin:setGlobalGodMode', { on: false }));
+  }
+  if (cheatKillAllBtn) {
+    cheatKillAllBtn.addEventListener('click', () => {
+      if (confirm('全員を即deathさせます。よろしいですか?')) socket.emit('admin:killAll');
+    });
+  }
+  if (cheatClearFoodBtn) {
+    cheatClearFoodBtn.addEventListener('click', () => socket.emit('admin:clearFood'));
+  }
+  if (cheatGoldenFoodBtn) {
+    cheatGoldenFoodBtn.addEventListener('click', () => socket.emit('admin:forceGoldenFood'));
+  }
+  if (cheatSpeedApplyBtn) {
+    cheatSpeedApplyBtn.addEventListener('click', () => {
+      const multiplier = parseFloat(cheatSpeedInput.value);
+      if (isFinite(multiplier)) socket.emit('admin:setGlobalSpeedMultiplier', { multiplier });
+    });
+  }
+  if (cheatWorldSizeApplyBtn) {
+    cheatWorldSizeApplyBtn.addEventListener('click', () => {
+      const size = parseInt(cheatWorldSizeInput.value);
+      if (isFinite(size)) socket.emit('admin:setWorldSizeOverride', { size });
+    });
+  }
+  if (cheatWorldSizeAutoBtn) {
+    cheatWorldSizeAutoBtn.addEventListener('click', () => socket.emit('admin:setWorldSizeOverride', { clear: true }));
+  }
 
   // ===== 一括操作(対象: 全員 / 人間のみ / BOTのみ) =====
   document.querySelectorAll('button[data-bulk]').forEach((btn) => {
@@ -1963,6 +2020,24 @@
       const input = row && row.querySelector('.mass-input');
       const amount = input ? parseInt(input.value) : NaN;
       if (isFinite(amount)) socket.emit('admin:setMass', { id, amount });
+    } else if (btn.dataset.action === 'maxout') {
+      socket.emit('admin:maxPlayer', { id });
+    } else if (btn.dataset.action === 'instakill') {
+      socket.emit('admin:instaKill', { id });
+    } else if (btn.dataset.action === 'teleport') {
+      socket.emit('admin:teleportRandom', { id });
+    } else if (btn.dataset.action === 'noclip') {
+      socket.emit('admin:toggleNoclip', { id });
+    } else if (btn.dataset.action === 'infboost') {
+      socket.emit('admin:toggleInfiniteBoost', { id });
+    } else if (btn.dataset.action === 'recolor') {
+      socket.emit('admin:recolorPlayer', { id });
+    } else if (btn.dataset.action === 'rename') {
+      const row = btn.closest('.admin-list-item');
+      const input = row && row.querySelector('.rename-input');
+      const name = input ? input.value.trim() : '';
+      if (name) socket.emit('admin:renamePlayer', { id, name });
+      if (input) input.value = '';
     }
   });
   adminPlayerList.addEventListener('change', (e) => {
@@ -1978,11 +2053,19 @@
   });
   adminPlayerList.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
-    const input = e.target.closest('.mass-input');
-    if (!input) return;
-    const row = input.closest('.admin-list-item');
-    const btn = row && row.querySelector('button[data-action="setmass"]');
-    if (btn) btn.click();
+    const massInput = e.target.closest('.mass-input');
+    if (massInput) {
+      const row = massInput.closest('.admin-list-item');
+      const btn = row && row.querySelector('button[data-action="setmass"]');
+      if (btn) btn.click();
+      return;
+    }
+    const renameInput = e.target.closest('.rename-input');
+    if (renameInput) {
+      const row = renameInput.closest('.admin-list-item');
+      const btn = row && row.querySelector('button[data-action="rename"]');
+      if (btn) btn.click();
+    }
   });
 
   function renderAdminStats() {
@@ -2060,6 +2143,20 @@
             <option value="red"${p.team === 'red' ? ' selected' : ''}>🔴レッド</option>
             <option value="blue"${p.team === 'blue' ? ' selected' : ''}>🔵ブルー</option>
           </select>
+        </div>
+        <div class="row2 cheat-row">
+          <button class="cheat" data-action="maxout" data-id="${p.id}">🚀最大化</button>
+          <button class="danger" data-action="instakill" data-id="${p.id}">💀即death</button>
+          <button class="cheat" data-action="teleport" data-id="${p.id}">🌀ワープ</button>
+        </div>
+        <div class="row2 cheat-row">
+          <button class="cheat${p.noclip ? ' active' : ''}" data-action="noclip" data-id="${p.id}">${p.noclip ? '🧱すり抜けOFF' : '🧱すり抜けON'}</button>
+          <button class="cheat${p.infiniteBoost ? ' active' : ''}" data-action="infboost" data-id="${p.id}">${p.infiniteBoost ? '⚡無限BOOST解除' : '⚡無限BOOST付与'}</button>
+        </div>
+        <div class="row2 cheat-row">
+          <input class="rename-input" type="text" maxlength="12" placeholder="新しい名前" />
+          <button class="cheat" data-action="rename" data-id="${p.id}">✏️改名</button>
+          <button class="cheat" data-action="recolor" data-id="${p.id}">🎨色</button>
         </div>
       </div>`;
     }
