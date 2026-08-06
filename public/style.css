@@ -1,0 +1,974 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0e1420;
+  font-family: 'Segoe UI', 'Hiragino Sans', 'Yu Gothic', sans-serif;
+  color: #eef2f7;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ===== ロビー ===== */
+#lobby {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 30%, #1c2740 0%, #0e1420 70%);
+}
+
+.lobby-box {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  padding: 36px 32px;
+  width: 90%;
+  max-width: 380px;
+  text-align: center;
+  backdrop-filter: blur(6px);
+}
+
+.lobby-box h1 {
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.lobby-box .sub {
+  font-size: 13px;
+  color: #a9b4c6;
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+#nameInput {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.25);
+  color: #fff;
+  font-size: 15px;
+  margin-bottom: 14px;
+  outline: none;
+}
+
+#nameInput:focus {
+  border-color: #33ccff;
+}
+
+#joinBtn {
+  width: 100%;
+  padding: 13px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ff5566, #ff8833);
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+#joinBtn:active {
+  transform: scale(0.97);
+}
+
+#joinBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.secondary-btn {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  color: #cfd8e8;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.secondary-btn:hover {
+  background: rgba(255,255,255,0.12);
+}
+
+.hint {
+  margin-top: 16px;
+  font-size: 12px;
+  color: #7c8aa3;
+  line-height: 1.6;
+}
+
+.status {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #66ff99;
+}
+
+.status.err {
+  color: #ff5566;
+}
+
+/* ===== ゲーム画面 ===== */
+#gameUI {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+#canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #12192a;
+  touch-action: none;
+}
+
+#hud {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  pointer-events: none;
+}
+
+#scoreBoxWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#scoreBox {
+  background: rgba(0,0,0,0.4);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+#statsBox {
+  background: rgba(0,0,0,0.3);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #a9b4c6;
+  white-space: nowrap;
+}
+
+#leaderboard {
+  background: rgba(0,0,0,0.4);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  min-width: 150px;
+}
+
+#leaderboard h3 {
+  font-size: 12px;
+  color: #a9b4c6;
+  margin-bottom: 6px;
+}
+
+#leaderboard ol {
+  list-style: decimal;
+  padding-left: 18px;
+}
+
+#leaderboard li {
+  margin-bottom: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#leaderboard li.me {
+  color: #ffcc33;
+  font-weight: bold;
+}
+
+#deathMsg {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.death-box {
+  background: #1c2740;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  padding: 28px 30px;
+  text-align: center;
+  max-width: 320px;
+}
+
+.death-box p {
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+.death-box button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #33ccff, #3399ff);
+  color: #fff;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* ===== キルフィード ===== */
+#killFeed {
+  position: absolute;
+  top: 100px;
+  right: 12px;
+  z-index: 37;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  pointer-events: none;
+  max-width: min(70vw, 320px);
+}
+
+#killFeed .feed-item {
+  background: rgba(0,0,0,0.55);
+  color: #eef2f7;
+  padding: 6px 13px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  animation: feedIn 0.28s cubic-bezier(.2,1.6,.4,1);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+}
+#killFeed .feed-item.kill { border-left: 3px solid #ff5566; }
+#killFeed .feed-item.infect { border-left: 3px solid #cc66ff; }
+#killFeed .feed-item.item { border-left: 3px solid #ffcc33; }
+#killFeed .feed-item.golden {
+  border-left: 3px solid #ffdd33;
+  background: rgba(90,70,0,0.55);
+  color: #ffe98a;
+}
+
+@keyframes feedIn {
+  from { opacity: 0; transform: translateX(16px) scale(0.85); }
+  60% { transform: translateX(-3px) scale(1.05); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+/* ===== ラウンド / チームスコア表示 ===== */
+#roundBar {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 38;
+  background: rgba(0,0,0,0.45);
+  padding: 8px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: bold;
+  color: #ffcc33;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+#teamScoreBar {
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 38;
+  display: flex;
+  gap: 10px;
+  pointer-events: none;
+}
+
+#teamScoreBar .team-chip {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: bold;
+  color: #fff;
+}
+#teamScoreBar .team-chip.red {
+  background: rgba(255,85,102,0.85);
+}
+#teamScoreBar .team-chip.blue {
+  background: rgba(51,153,255,0.85);
+}
+
+/* ===== 全体アナウンス ===== */
+#announcementBanner {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 45;
+  max-width: min(90vw, 560px);
+  background: linear-gradient(135deg, rgba(255,140,20,0.95), rgba(255,60,90,0.95));
+  color: #fff;
+  padding: 12px 22px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: bold;
+  text-align: center;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  pointer-events: none;
+  animation: announceIn 0.25s ease-out;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@keyframes announceIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-12px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ===== パワーアップボタン ===== */
+.boost-btn {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 42;
+  padding: 16px 26px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #ffcc33, #ff8833);
+  color: #201400;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(255,150,20,0.4);
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+.boost-btn:disabled {
+  background: rgba(255,255,255,0.1);
+  color: #7c8aa3;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* ===== 絵文字タウント ===== */
+#emoteBar {
+  position: absolute;
+  bottom: 28px;
+  left: 16px;
+  z-index: 42;
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+#emoteBar button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.45);
+  font-size: 19px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+#emoteBar button:hover {
+  background: rgba(0,0,0,0.65);
+  transform: scale(1.08);
+}
+#emoteBar button:active {
+  transform: scale(0.94);
+}
+
+/* ===== キルストリーク実況 ===== */
+#streakBanner {
+  position: absolute;
+  top: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 46;
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(255,80,40,0.9), 0 0 24px rgba(255,150,20,0.7);
+  pointer-events: none;
+  animation: streakPop 0.4s cubic-bezier(.2,1.4,.4,1);
+  white-space: nowrap;
+}
+@keyframes streakPop {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.4) rotate(-4deg); }
+  55% { opacity: 1; transform: translateX(-50%) scale(1.25) rotate(2deg); }
+  75% { transform: translateX(-50%) scale(0.95) rotate(-1deg); }
+  100% { opacity: 1; transform: translateX(-50%) scale(1) rotate(0deg); }
+}
+
+/* ===== ラウンド優勝バナー ===== */
+#winnerBanner {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 95;
+  text-align: center;
+  pointer-events: none;
+  animation: winnerIn 0.6s cubic-bezier(.2,1.5,.3,1);
+}
+.winner-title {
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: 4px;
+  background: linear-gradient(90deg, #ffcc33, #fff6c8, #ffcc33, #ff9933);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 30px rgba(255,204,51,0.6);
+  animation: winnerShine 1.6s linear infinite;
+}
+.winner-name {
+  margin-top: 6px;
+  font-size: 26px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 0 16px rgba(255,255,255,0.7), 0 0 30px rgba(255,204,51,0.6);
+}
+@keyframes winnerIn {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3) rotate(-8deg); }
+  60% { opacity: 1; transform: translate(-50%, -50%) scale(1.15) rotate(3deg); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+}
+@keyframes winnerShine {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+/* ===== ミニマップ ===== */
+#minimapCanvas {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 39;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(0,0,0,0.4);
+  pointer-events: none;
+}
+
+/* ===== 観戦モード ===== */
+#spectateBar {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 42;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(0,0,0,0.55);
+  padding: 10px 18px;
+  border-radius: 999px;
+  font-size: 13px;
+  color: #cfd8e8;
+  pointer-events: auto;
+}
+#spectateBar button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #33ccff, #3399ff);
+  color: #fff;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* ===== 管理者ログイン ===== */
+#topRightBtns {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 50;
+  display: flex;
+  gap: 8px;
+}
+
+#topRightBtns button {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.35);
+  color: #cfd8e8;
+  font-size: 17px;
+  cursor: pointer;
+}
+#topRightBtns button:hover {
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+}
+#adminGearBtn.is-admin {
+  border-color: #66ff99;
+  color: #66ff99;
+}
+
+.account-welcome {
+  font-size: 14px;
+  color: #66ff99;
+  margin-bottom: 12px;
+  font-weight: bold;
+}
+
+#accountLoggedInSection #joinAsAccountBtn {
+  width: 100%;
+  padding: 13px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ff5566, #ff8833);
+  color: #fff;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+
+#accountLoggedInSection #logoutBtn {
+  width: 100%;
+}
+
+.modal-switch {
+  margin-top: 14px;
+  font-size: 12px;
+  color: #7c8aa3;
+  text-align: center;
+}
+.modal-switch a {
+  color: #33ccff;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.lobby-subbtn-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.secondary-btn.small {
+  margin-top: 0;
+  padding: 9px;
+  font-size: 12px;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-box {
+  background: #1c2740;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: 26px 26px;
+  width: 90%;
+  max-width: 320px;
+  text-align: center;
+}
+
+.modal-box h2 {
+  font-size: 18px;
+  margin-bottom: 16px;
+}
+
+.modal-box input {
+  width: 100%;
+  padding: 11px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.25);
+  color: #fff;
+  font-size: 14px;
+  margin-bottom: 14px;
+  outline: none;
+}
+.modal-box input:focus {
+  border-color: #33ccff;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.modal-actions button {
+  flex: 1;
+  padding: 11px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(135deg, #ff5566, #ff8833);
+}
+
+.modal-actions button.secondary {
+  background: rgba(255,255,255,0.08);
+  color: #cfd8e8;
+}
+
+.modal-box.wide {
+  max-width: 480px;
+  text-align: left;
+}
+.modal-box.wide h2 {
+  text-align: center;
+}
+
+.modal-scroll {
+  max-height: 60vh;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  padding-right: 4px;
+}
+.modal-scroll h4 {
+  font-size: 13px;
+  color: #ffcc33;
+  margin: 14px 0 4px;
+}
+.modal-scroll h4:first-child {
+  margin-top: 0;
+}
+.modal-scroll p {
+  font-size: 12.5px;
+  color: #cfd8e8;
+  line-height: 1.7;
+}
+
+.achievements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.achievement-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.achievement-item.unlocked {
+  background: rgba(255,204,51,0.08);
+  border-color: rgba(255,204,51,0.3);
+}
+.achievement-item .ach-icon {
+  font-size: 26px;
+  width: 34px;
+  text-align: center;
+  flex-shrink: 0;
+  filter: grayscale(1);
+  opacity: 0.4;
+}
+.achievement-item.unlocked .ach-icon {
+  filter: none;
+  opacity: 1;
+}
+.achievement-item .ach-body {
+  flex: 1;
+  min-width: 0;
+}
+.achievement-item .ach-title {
+  font-size: 13px;
+  font-weight: bold;
+  color: #cfd8e8;
+}
+.achievement-item.unlocked .ach-title {
+  color: #ffcc33;
+}
+.achievement-item .ach-desc {
+  font-size: 11px;
+  color: #7c8aa3;
+  margin-top: 2px;
+}
+
+/* ===== 実績解除トースト ===== */
+#achievementToast {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  background: linear-gradient(135deg, #ffcc33, #ff9933);
+  color: #2a1a00;
+  padding: 12px 22px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: bold;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.4);
+  pointer-events: none;
+  animation: toastIn 0.3s ease-out;
+  text-align: center;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-16px) scale(0.9); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+
+/* ===== 管理者パネル ===== */
+.admin-toggle {
+  position: absolute;
+  top: 58px;
+  right: 12px;
+  z-index: 40;
+  padding: 8px 14px;
+  border: 1px solid rgba(102,255,153,0.4);
+  border-radius: 8px;
+  background: rgba(0,60,30,0.5);
+  color: #66ff99;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.admin-panel {
+  position: absolute;
+  top: 102px;
+  right: 12px;
+  z-index: 41;
+  width: 280px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background: rgba(10,16,28,0.92);
+  border: 1px solid rgba(102,255,153,0.3);
+  border-radius: 12px;
+  padding: 14px;
+  pointer-events: auto;
+}
+
+.admin-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.admin-panel-header h3 {
+  font-size: 14px;
+  color: #66ff99;
+}
+
+.admin-panel-header button {
+  background: none;
+  border: none;
+  color: #a9b4c6;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.admin-section {
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.admin-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.admin-section h4 {
+  font-size: 12px;
+  color: #a9b4c6;
+  margin-bottom: 8px;
+}
+
+.admin-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.admin-row input[type="number"] {
+  width: 60px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.3);
+  color: #fff;
+  font-size: 13px;
+}
+
+.admin-row select {
+  flex: 1;
+  padding: 7px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.3);
+  color: #fff;
+  font-size: 13px;
+}
+
+.admin-row button {
+  flex: 1;
+  padding: 8px 6px;
+  border: none;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #33ccff, #3399ff);
+  color: #fff;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.admin-row button.danger {
+  background: linear-gradient(135deg, #ff5566, #cc3344);
+}
+
+.admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-list-item {
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.admin-list-item .row1 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.admin-list-item .row1 .tag {
+  font-size: 10px;
+  color: #ffcc33;
+  margin-right: 4px;
+}
+
+.admin-list-item .row2 {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.admin-list-item select {
+  font-size: 11px;
+  padding: 4px 5px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.3);
+  color: #fff;
+}
+
+.admin-list-item button {
+  font-size: 11px;
+  padding: 4px 8px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+.admin-list-item button.danger {
+  background: rgba(255,80,80,0.25);
+  color: #ff8899;
+}
+
+.admin-list-item button.boost {
+  background: rgba(102,255,153,0.2);
+  color: #66ff99;
+}
+
+.admin-list-item button.active {
+  background: rgba(255,204,51,0.3);
+  color: #ffcc33;
+}
+
+.admin-stats {
+  font-size: 12px;
+  color: #cfd8e8;
+  line-height: 1.8;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.admin-note {
+  font-size: 11px;
+  color: #7c8aa3;
+  margin-bottom: 8px;
+  line-height: 1.5;
+}
+
+.toggle-btn {
+  flex: 1;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #a9b4c6;
+}
+.toggle-btn.on {
+  background: rgba(102,255,153,0.2);
+  border-color: rgba(102,255,153,0.4);
+  color: #66ff99;
+}
+.toggle-btn.off {
+  background: rgba(255,85,102,0.15);
+  border-color: rgba(255,85,102,0.3);
+  color: #ff8899;
+}
+
+.admin-row select#announceTargetSelect,
+.admin-row select#bulkScopeSelect {
+  flex: 1;
+  padding: 7px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.3);
+  color: #fff;
+  font-size: 13px;
+}
+
+.admin-list-item input[type="number"].mass-input {
+  width: 64px;
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(0,0,0,0.3);
+  color: #fff;
+}

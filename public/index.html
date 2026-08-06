@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>ドットバトル - マルチプレイ</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- 常時表示の右上ボタン群 -->
+  <div id="topRightBtns">
+    <button id="helpGameBtn" title="遊び方">❓</button>
+    <button id="achievementsGameBtn" title="実績">🏆</button>
+    <button id="adminGearBtn" title="管理者ログイン">⚙</button>
+  </div>
+
+  <!-- 管理者ログインモーダル -->
+  <div id="adminModal" class="modal hidden">
+    <div class="modal-box">
+      <h2>🔑 管理者ログイン</h2>
+      <input id="adminPasswordInput" type="password" placeholder="管理者パスワード" autocomplete="off" />
+      <div class="modal-actions">
+        <button id="adminLoginBtn">ログイン</button>
+        <button id="adminCancelBtn" class="secondary">キャンセル</button>
+      </div>
+      <p id="adminLoginMsg" class="status"></p>
+    </div>
+  </div>
+
+  <!-- ロビー画面 -->
+  <div id="lobby">
+    <div class="lobby-box">
+      <h1>🔴 ドットバトル</h1>
+      <p class="sub">エサを食べて大きくなり、自分より小さい相手を飲み込め！</p>
+
+      <!-- ゲスト参加 / 未ログイン時 -->
+      <div id="accountLoggedOutSection">
+        <input id="nameInput" type="text" maxlength="12" placeholder="名前を入力 (省略可)" autocomplete="off" />
+        <button id="joinBtn">ゲストとして参加する</button>
+        <div class="lobby-subbtn-row">
+          <button id="loginOpenBtn" class="secondary-btn small">🔑 ログイン</button>
+          <button id="registerOpenBtn" class="secondary-btn small">📝 新規登録</button>
+        </div>
+      </div>
+
+      <!-- ログイン中の表示 -->
+      <div id="accountLoggedInSection" class="hidden">
+        <p class="account-welcome">👤 <span id="accountUsernameDisplay"></span> としてログイン中</p>
+        <button id="joinAsAccountBtn">このアカウントで参加する</button>
+        <button id="logoutBtn" class="secondary-btn small">ログアウト</button>
+      </div>
+
+      <button id="spectateBtn" class="secondary-btn">👀 観戦する</button>
+      <div class="lobby-subbtn-row">
+        <button id="helpOpenBtn" class="secondary-btn small">❓ 遊び方</button>
+        <button id="achievementsOpenBtn" class="secondary-btn small">🏆 実績</button>
+      </div>
+      <p class="hint">PC: マウス操作 または WASD/矢印キーで移動 / スペースキーでパワーアップ<br>スマホ: 画面をドラッグして移動 / ⚡ボタンでパワーアップ</p>
+      <p id="connStatus" class="status">サーバーに接続中...</p>
+    </div>
+  </div>
+
+  <!-- ログインモーダル -->
+  <div id="loginModal" class="modal hidden">
+    <div class="modal-box">
+      <h2>🔑 ログイン</h2>
+      <input id="loginUsernameInput" type="text" maxlength="16" placeholder="ユーザー名" autocomplete="username" />
+      <input id="loginPasswordInput" type="password" placeholder="パスワード" autocomplete="current-password" />
+      <div class="modal-actions">
+        <button id="loginSubmitBtn">ログイン</button>
+        <button id="loginCancelBtn" class="secondary">キャンセル</button>
+      </div>
+      <p id="loginMsg" class="status"></p>
+      <p class="modal-switch">アカウントをお持ちでない方は <a href="#" id="switchToRegisterLink">新規登録</a></p>
+    </div>
+  </div>
+
+  <!-- 新規登録モーダル -->
+  <div id="registerModal" class="modal hidden">
+    <div class="modal-box">
+      <h2>📝 新規登録</h2>
+      <input id="registerUsernameInput" type="text" maxlength="16" placeholder="ユーザー名 (2〜16文字)" autocomplete="username" />
+      <input id="registerPasswordInput" type="password" placeholder="パスワード (4文字以上)" autocomplete="new-password" />
+      <input id="registerPasswordConfirmInput" type="password" placeholder="パスワード (確認)" autocomplete="new-password" />
+      <div class="modal-actions">
+        <button id="registerSubmitBtn">登録する</button>
+        <button id="registerCancelBtn" class="secondary">キャンセル</button>
+      </div>
+      <p id="registerMsg" class="status"></p>
+      <p class="modal-switch">すでにアカウントをお持ちの方は <a href="#" id="switchToLoginLink">ログイン</a></p>
+    </div>
+  </div>
+
+  <!-- 遊び方モーダル -->
+  <div id="helpModal" class="modal hidden">
+    <div class="modal-box wide">
+      <h2>❓ 遊び方</h2>
+      <div class="modal-scroll">
+        <h4>🎮 基本操作</h4>
+        <p>PC: マウスを動かした方向 or WASD/矢印キーで移動。スペースキーでパワーアップ。<br>
+        スマホ: 画面をドラッグした方向に移動。画面下の⚡ボタンでパワーアップ。</p>
+
+        <h4>🍬 基本ルール</h4>
+        <p>エサを食べてスコア(質量)を増やそう。自分よりスコアが低い相手に体当たりすると、相手を飲み込んでスコアをまるごと奪える。大きくなるほど移動は遅くなるので注意。</p>
+
+        <h4>⚡ パワーアップ</h4>
+        <p>画面下のボタン(またはスペースキー)で、自分のスコアの一部を消費して一時的にスピードアップできる。使用後はクールダウンが必要。</p>
+
+        <h4>🎁 ランダムアイテム</h4>
+        <p>マップ上に光るアイテムが出現することがある。⚡スピードアップ / 🛡️シールド(一時無敵) / 🧲マグネット(エサ吸引) / 💥巨大化 / ❓ミステリー(ランダム効果)。</p>
+
+        <h4>🪨 マップギミック</h4>
+        <p>🪨障害物(通れない壁)、🌋危険地帯(踏むとダメージ)、🌀ワープホール(2つで1組、片方に入るともう片方へ瞬間移動)が配置されることがある。</p>
+
+        <h4>🎮 ゲームモード(管理者が切替可能)</h4>
+        <p>
+          👤個人戦: 全員が敵。<br>
+          🔴🔵チーム戦: 同じチームは食べられない。チームの合計スコアで勝敗。<br>
+          🧟感染鬼ごっこ: 鬼に触れると感染。ラウンド終了時に非感染で生き残った人が勝ち。<br>
+          👑キングオブザヒル: マップ中央のヒルに居座るほどポイント獲得。<br>
+          ⚡バトルロイヤル: 時間経過で安全地帯(ストーム)が縮小、外にいるとダメージ。
+        </p>
+
+        <h4>👀 観戦モード</h4>
+        <p>ロビーの「観戦する」から、参加せずに試合を見学できる。カメラは自動で現在の1位を追尾。</p>
+
+        <h4>🌟 ゴールデンフード</h4>
+        <p>時々マップのどこかに輝く特別なエサが出現する(全員に通知あり)。通常のエサの15倍のスコアが手に入るが、放っておくとしばらくして消えてしまうので早い者勝ち。</p>
+
+        <h4>🔥 キルストリーク</h4>
+        <p>短時間で連続して相手を飲み込むと「ダブルキル」「トリプルキル」…と実況され、全員に知らされる。</p>
+
+        <h4>😂 絵文字タウント</h4>
+        <p>画面下の絵文字ボタン(またはPCなら数字キー1〜6)で、自分の上に感情アイコンを表示できる。</p>
+
+        <h4>🗺️ ミニマップ</h4>
+        <p>画面右下に全体マップが表示され、他プレイヤーの位置がざっくり分かる。</p>
+
+        <h4>🔑 アカウント</h4>
+        <p>登録せずに「ゲストとして参加」もできるし、ユーザー名とパスワードでアカウント登録・ログインもできる。ログインすると次回訪問時も自動でログイン状態が保持される(この端末のブラウザに保存)。※このゲームはLAN内の身内プレイ用なので、通信は暗号化されていない。他で使っている大事なパスワードは使い回さないこと。</p>
+
+        <h4>🏆 実績</h4>
+        <p>プレイ内容に応じて実績が解除される。実績はこの端末のブラウザ(Cookie)に保存され、次回訪問時も引き継がれる。</p>
+      </div>
+      <div class="modal-actions">
+        <button id="helpCloseBtn">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 実績モーダル -->
+  <div id="achievementsModal" class="modal hidden">
+    <div class="modal-box wide">
+      <h2>🏆 実績</h2>
+      <div id="achievementsList" class="modal-scroll achievements-list">読み込み中...</div>
+      <div class="modal-actions">
+        <button id="achievementsCloseBtn">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 実績解除トースト通知 -->
+  <div id="achievementToast" class="hidden"></div>
+
+  <!-- ゲーム画面 -->
+  <div id="gameUI" class="hidden">
+    <canvas id="canvas"></canvas>
+    <div id="hud">
+      <div id="scoreBoxWrap">
+        <div id="scoreBox">スコア: <span id="scoreVal">0</span></div>
+        <div id="statsBox">
+          🌐<span id="statWorldSize">-</span> ／
+          🍬<span id="statFood">-</span> ／
+          👥<span id="statPlayers">-</span>
+        </div>
+      </div>
+      <div id="leaderboard"></div>
+    </div>
+
+    <!-- ラウンド状況 / チームスコア表示 -->
+    <div id="roundBar" class="hidden"></div>
+    <div id="teamScoreBar" class="hidden"></div>
+
+    <!-- キルフィード -->
+    <div id="killFeed"></div>
+
+    <!-- キルストリーク実況バナー -->
+    <div id="streakBanner" class="hidden"></div>
+
+    <!-- ラウンド優勝バナー -->
+    <div id="winnerBanner" class="hidden">
+      <div class="winner-title">🏆 WINNER 🏆</div>
+      <div id="winnerName" class="winner-name"></div>
+    </div>
+
+    <!-- ミニマップ -->
+    <canvas id="minimapCanvas" width="150" height="150"></canvas>
+
+    <!-- 管理者アナウンス表示(全プレイヤー向け) -->
+    <div id="announcementBanner" class="hidden"></div>
+    <div id="deathMsg" class="hidden">
+      <div class="death-box">
+        <p id="deathText"></p>
+        <button id="respawnBtn">もう一度参加</button>
+      </div>
+    </div>
+
+    <!-- パワーアップボタン(自分のスコアを消費してスピードアップ) -->
+    <button id="boostBtn" class="hidden boost-btn">⚡ パワーアップ</button>
+
+    <!-- 絵文字タウント -->
+    <div id="emoteBar" class="hidden">
+      <button data-emote="laugh" title="笑う">😂</button>
+      <button data-emote="cry" title="泣く">😭</button>
+      <button data-emote="angry" title="怒る">😡</button>
+      <button data-emote="fire" title="ナイス">🔥</button>
+      <button data-emote="thumbsup" title="いいね">👍</button>
+      <button data-emote="skull" title="やられた">💀</button>
+    </div>
+
+    <!-- 観戦モード用バー -->
+    <div id="spectateBar" class="hidden">
+      👀 観戦モード中
+      <button id="exitSpectateBtn">🎮 参加してプレイする</button>
+    </div>
+
+    <!-- 管理者パネル開閉ボタン -->
+    <button id="adminPanelToggle" class="hidden admin-toggle">🛠 管理者パネル</button>
+
+    <!-- 管理者パネル本体 -->
+    <div id="adminPanel" class="hidden admin-panel">
+      <div class="admin-panel-header">
+        <h3>🛠 管理者パネル</h3>
+        <button id="adminPanelClose">✕</button>
+      </div>
+
+      <div class="admin-section">
+        <h4>BOTを追加</h4>
+        <div class="admin-row">
+          <input id="botCountInput" type="number" min="1" max="20" value="1" title="追加人数" />
+          <select id="botModeSelect" title="性格">
+            <option value="passive">おとなしい</option>
+            <option value="normal" selected>ふつう</option>
+            <option value="aggressive">凶暴</option>
+          </select>
+        </div>
+        <div class="admin-row">
+          <button id="addBotBtn">BOT追加</button>
+          <button id="removeAllBotsBtn" class="danger">全BOT削除</button>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <h4>📊 現在の状況</h4>
+        <div id="adminStats" class="admin-stats">読み込み中...</div>
+      </div>
+
+      <div class="admin-section">
+        <h4>📢 アナウンス</h4>
+        <div class="admin-row">
+          <input id="announceInput" type="text" maxlength="100" placeholder="表示するメッセージ" />
+        </div>
+        <div class="admin-row">
+          <select id="announceTargetSelect" title="送信先">
+            <option value="all">全員に送る</option>
+          </select>
+          <button id="announceBtn">送信</button>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <h4>🎮 ゲームモード</h4>
+        <div class="admin-row">
+          <select id="gameModeSelect" title="モード">
+            <option value="ffa">👤 個人戦</option>
+            <option value="team">🔴🔵 チーム戦</option>
+            <option value="infection">🧟 感染鬼ごっこ</option>
+            <option value="koth">👑 キングオブザヒル</option>
+            <option value="battle_royale">⚡ バトルロイヤル</option>
+          </select>
+          <button id="setGameModeBtn">切替</button>
+        </div>
+        <div class="admin-row">
+          <button id="autoBalanceBtn">🔀 自動でチーム分け(チーム戦用)</button>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <h4>✨ 面白さ強化機能</h4>
+        <div class="admin-row">
+          <button id="toggleItemsBtn" class="toggle-btn">アイテム: -</button>
+          <button id="toggleGimmicksBtn" class="toggle-btn">ギミック: -</button>
+        </div>
+        <div class="admin-row">
+          <button id="toggleEffectsBtn" class="toggle-btn">演出/効果音: -</button>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <h4>🏁 ラウンド管理</h4>
+        <div id="roundAdminStatus" class="admin-stats">読み込み中...</div>
+        <div class="admin-row">
+          <input id="roundMinutesInput" type="number" min="1" max="60" placeholder="時間(分) 例:3" />
+          <button id="startRoundBtn">ラウンド開始</button>
+        </div>
+        <div class="admin-row">
+          <button id="endRoundBtn" class="danger">今すぐ終了</button>
+          <button id="resetRoundBtn">待機状態に戻す</button>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <h4>👥 一括操作</h4>
+        <div class="admin-row">
+          <select id="bulkScopeSelect" title="対象">
+            <option value="all">全員</option>
+            <option value="humans">人間のみ</option>
+            <option value="bots">BOTのみ</option>
+          </select>
+        </div>
+        <div class="admin-row">
+          <button data-bulk="boost">一括+300</button>
+          <button data-bulk="respawn">一括リスポーン</button>
+        </div>
+        <div class="admin-row">
+          <button data-bulk="freeze">一括凍結</button>
+          <button data-bulk="unfreeze">一括解凍</button>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <h4>🌐 ワールド設定</h4>
+        <p class="admin-note">マップの広さはプレイヤー数とサイズに応じて自動調整されます</p>
+        <div class="admin-row">
+          <input id="foodCountInput" type="number" min="20" max="500" placeholder="エサの数(20〜500)" />
+          <button id="setFoodCountBtn">適用</button>
+        </div>
+        <div class="admin-row">
+          <button id="resetAllBtn" class="danger">全員リスポーン(スコアリセット)</button>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <h4>プレイヤー / BOT 一覧</h4>
+        <div id="adminPlayerList" class="admin-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "multiplayer-browser-game",
+  "version": "1.0.0",
+  "description": "Browser-based realtime multiplayer .io-style game (PC/Smartphone cross-play over LAN)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}
