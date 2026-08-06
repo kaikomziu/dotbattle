@@ -12,6 +12,8 @@
   const ctx = canvas.getContext('2d');
   const scoreVal = document.getElementById('scoreVal');
   const scoreBox = document.getElementById('scoreBox');
+  const joystickBase = document.getElementById('joystickBase');
+  const joystickKnob = document.getElementById('joystickKnob');
   const leaderboard = document.getElementById('leaderboard');
   const deathMsg = document.getElementById('deathMsg');
   const deathText = document.getElementById('deathText');
@@ -108,6 +110,7 @@
   const settingsModal = document.getElementById('settingsModal');
   const settingsCloseBtn = document.getElementById('settingsCloseBtn');
   const settingWasdBtn = document.getElementById('settingWasdBtn');
+  const settingWasdOnlyBtn = document.getElementById('settingWasdOnlyBtn');
   const settingSoundBtn = document.getElementById('settingSoundBtn');
   const settingShakeBtn = document.getElementById('settingShakeBtn');
   const settingParticlesBtn = document.getElementById('settingParticlesBtn');
@@ -123,7 +126,10 @@
   const changePasswordBtn = document.getElementById('changePasswordBtn');
   const changePasswordMsg = document.getElementById('changePasswordMsg');
 
-  const EMOTE_ICONS = { laugh: '😂', cry: '😭', angry: '😡', fire: '🔥', thumbsup: '👍', skull: '💀' };
+  const EMOTE_ICONS = {
+    laugh: '😂', cry: '😭', angry: '😡', fire: '🔥', thumbsup: '👍', skull: '💀',
+    wow: '😮', cool: '😎', party: '🎉', heart: '❤️', wave: '👋', hundred: '💯'
+  };
 
   const TEAM_COLORS = { red: '#ff5566', blue: '#3399ff' };
   const TEAM_LABELS = { red: '🔴レッド', blue: '🔵ブルー' };
@@ -258,17 +264,28 @@
     { id: 'hidden_namecode', icon: '🍬', title: '秘密のコードネーム', desc: '???', hint: '特定の名前で参加した', cat: '🎭 隠し要素' },
     { id: 'hidden_longpress', icon: '🖐️', title: '我慢比べ', desc: '???', hint: 'スコア表示を長押しした', cat: '🎭 隠し要素' },
     { id: 'hidden_secretroom', icon: '🎁', title: 'ヒミツの部屋', desc: '???', hint: 'ロビーの隅を連続でタップした', cat: '🎭 隠し要素' },
-    { id: 'hidden_emotecombo', icon: '🎭', title: '感情のフルコース', desc: '???', hint: '絵文字を表示順にすべて使った', cat: '🎭 隠し要素' },
+    { id: 'hidden_emotecombo', icon: '🎭', title: '感情のフルコース', desc: '???', hint: '12種類の絵文字を表示順にすべて使った(15秒以内)', cat: '🎭 隠し要素' },
     { id: 'hidden_minimap', icon: '🔭', title: 'ミニマップ凝視', desc: '???', hint: 'ミニマップを連続でタップした', cat: '🎭 隠し要素' },
     { id: 'hidden_leaderboard', icon: '📋', title: '本当の実力者', desc: '???', hint: 'ランキング表示を連続でタップした', cat: '🎭 隠し要素' },
     { id: 'hidden_afk', icon: '🗿', title: '置物', desc: '???', hint: '30秒間まったく動かなかった', cat: '🎭 隠し要素' },
     { id: 'hidden_adminname', icon: '🕵️', title: 'なりすまし未遂', desc: '???', hint: '管理者っぽい名前でログインを試みた', cat: '🎭 隠し要素' },
+
+    // --- 物語の欠片(遊び進めるうちに、少しずつ明らかになっていく…) ---
+    { id: 'hidden_story_1', icon: '📖', title: '第一の記憶・目覚め', desc: '???', hint: '初めて食べ物を口にした', cat: '📖 物語の欠片' },
+    { id: 'hidden_story_2', icon: '📗', title: '第二の記憶・成長', desc: '???', hint: 'スコアを1000まで育てた', cat: '📖 物語の欠片' },
+    { id: 'hidden_story_3', icon: '📙', title: '第三の記憶・捕食', desc: '???', hint: '初めて他のプレイヤーを飲み込んだ', cat: '📖 物語の欠片' },
+    { id: 'hidden_story_4', icon: '📘', title: '第四の記憶・試練', desc: '???', hint: '一度も死なずにラウンドを生き延びた', cat: '📖 物語の欠片' },
+    { id: 'hidden_story_5', icon: '📕', title: '第五の記憶・頂点', desc: '???', hint: 'ランキング1位になった', cat: '📖 物語の欠片' },
+    { id: 'hidden_story_6', icon: '📓', title: '終章・真実', desc: '???', hint: 'ヒミツの部屋で最後のログを見つけた', cat: '📖 物語の欠片' },
+    { id: 'hidden_story_true', icon: '🌈', title: '赤い点の真実', desc: '???', hint: '物語の欠片を6つすべて集めた(自分の色が虹色に輝くようになる)', cat: '📖 物語の欠片' },
+
     { id: 'hidden_allsecrets', icon: '🗝️', title: 'すべてを見た者', desc: '???', hint: '隠し要素の実績をすべて解除した', cat: '🎭 隠し要素' }
   ];
   const HIDDEN_SECRET_IDS = [
     'hidden_stats', 'hidden_credits', 'hidden_omikuji', 'hidden_daikichi', 'hidden_retro', 'hidden_tos',
     'hidden_konami', 'hidden_logotap', 'hidden_midnight', 'hidden_namecode', 'hidden_longpress',
-    'hidden_secretroom', 'hidden_emotecombo', 'hidden_minimap', 'hidden_leaderboard', 'hidden_afk', 'hidden_adminname'
+    'hidden_secretroom', 'hidden_emotecombo', 'hidden_minimap', 'hidden_leaderboard', 'hidden_afk', 'hidden_adminname',
+    'hidden_story_1', 'hidden_story_2', 'hidden_story_3', 'hidden_story_4', 'hidden_story_5', 'hidden_story_6', 'hidden_story_true'
   ];
 
   function unlockAchievement(id) {
@@ -343,10 +360,16 @@
   let lastRoundStateSeen = null; // ラウンド状態の遷移検知用
 
   function checkMassAchievements(mass) {
-    if (mass > 0) unlockAchievement('first_food');
+    if (mass > 0) {
+      unlockAchievement('first_food');
+      unlockStoryFragment('hidden_story_1');
+    }
     if (mass >= 100) unlockAchievement('mass_100');
     if (mass >= 500) unlockAchievement('mass_500');
-    if (mass >= 1000) unlockAchievement('mass_1000');
+    if (mass >= 1000) {
+      unlockAchievement('mass_1000');
+      unlockStoryFragment('hidden_story_2');
+    }
     if (mass >= 2000) unlockAchievement('mass_2000');
     if (mass >= 5000) unlockAchievement('mass_5000');
     if (mass >= 10000) unlockAchievement('mass_10000');
@@ -362,7 +385,10 @@
     const alive = (latestState.players || []).filter(p => p.alive);
     if (alive.length < 2) return;
     const top = alive.reduce((best, p) => (p.mass > best.mass ? p : best), alive[0]);
-    if (top.id === myId && top.mass > 0) unlockAchievement('rank_1');
+    if (top.id === myId && top.mass > 0) {
+      unlockAchievement('rank_1');
+      unlockStoryFragment('hidden_story_5');
+    }
   }
 
   function checkFullLobbyAchievement() {
@@ -376,6 +402,7 @@
     achievementStats.kills = (achievementStats.kills || 0) + 1;
     saveAchievementStats();
     unlockAchievement('first_kill');
+    unlockStoryFragment('hidden_story_3');
     ['kill_5', 'kill_10', 'kill_25', 'kill_50', 'kill_100'].forEach(id => {
       const def = ACHIEVEMENTS.find(a => a.id === id);
       if (def && achievementStats.kills >= def.target) unlockAchievement(id);
@@ -440,7 +467,10 @@
       koth: 'koth_king', battle_royale: 'battle_royale_win'
     };
     if (modeAchievementMap[mode]) unlockAchievement(modeAchievementMap[mode]);
-    if (!diedThisRound) unlockAchievement('round_survive');
+    if (!diedThisRound) {
+      unlockAchievement('round_survive');
+      unlockStoryFragment('hidden_story_4');
+    }
   }
   function registerGamePlayed() {
     achievementStats.gamesPlayed = (achievementStats.gamesPlayed || 0) + 1;
@@ -630,6 +660,7 @@
   // ========================================================
   const SETTINGS_DEFAULTS = {
     wasdEnabled: true,
+    wasdOnly: false,
     soundEnabled: true,
     shakeEnabled: true,
     particlesEnabled: true,
@@ -656,6 +687,7 @@
   }
   function refreshSettingsButtons() {
     setToggleBtnState(settingWasdBtn, settings.wasdEnabled);
+    setToggleBtnState(settingWasdOnlyBtn, settings.wasdOnly);
     setToggleBtnState(settingSoundBtn, settings.soundEnabled);
     setToggleBtnState(settingShakeBtn, settings.shakeEnabled);
     setToggleBtnState(settingParticlesBtn, settings.particlesEnabled);
@@ -677,6 +709,17 @@
     });
   }
   bindSettingToggle(settingWasdBtn, 'wasdEnabled');
+  // WASD専用モードをONにする場合は、キーボード移動自体も強制的にONにする(でないと一切操作できなくなるため)
+  settingWasdOnlyBtn.addEventListener('click', () => {
+    settings.wasdOnly = !settings.wasdOnly;
+    if (settings.wasdOnly) settings.wasdEnabled = true;
+    dirX = 0;
+    dirY = 0;
+    pointerActive = false;
+    if (settings.wasdOnly) joystickBase.classList.add('hidden');
+    saveSettings();
+    refreshSettingsButtons();
+  });
   bindSettingToggle(settingSoundBtn, 'soundEnabled');
   bindSettingToggle(settingShakeBtn, 'shakeEnabled');
   bindSettingToggle(settingParticlesBtn, 'particlesEnabled');
@@ -868,6 +911,11 @@
         unlockAchievement('hidden_secretroom');
         secretRoomModal.classList.remove('hidden');
         if (settings.particlesEnabled) spawnConfettiAtScreenCenter();
+        // 部屋を開いたら少し間を置いてから、隠されていたログ(物語の最終章)を表示する
+        setTimeout(() => {
+          secretRoomModal.classList.add('hidden');
+          unlockStoryFragment('hidden_story_6');
+        }, 1500);
       }
     });
   }
@@ -878,8 +926,98 @@
     secretRoomModal.addEventListener('click', (e) => { if (e.target === secretRoomModal) secretRoomModal.classList.add('hidden'); });
   }
 
+  // ============================================================
+  // ----- 物語の欠片(遊び進めるうちに少しずつ明らかになる隠しストーリー) -----
+  // 「赤い点」と呼ばれた、かつてこの世界の頂点にいた何者かの記録。
+  // 6つの欠片をすべて集めると、真実が明らかになる。
+  // ============================================================
+  const storyModal = document.getElementById('storyModal');
+  const storyModalProgress = document.getElementById('storyModalProgress');
+  const storyModalTitle = document.getElementById('storyModalTitle');
+  const storyModalText = document.getElementById('storyModalText');
+  const storyModalCloseBtn = document.getElementById('storyModalCloseBtn');
+
+  const STORY_FRAGMENTS = [
+    {
+      id: 'hidden_story_1', order: 1, icon: '📖', title: '第一の記憶・目覚め',
+      text: 'ここは、どこだ。気づけば、ただの小さな点として、この世界に放り出されていた。\n誰もが点として生まれ、点として大きくなり、いつか点として消えていく——そういう掟が、この世界にはあるらしい。'
+    },
+    {
+      id: 'hidden_story_2', order: 2, icon: '📗', title: '第二の記憶・成長',
+      text: '大きくなるほど、世界が良く見えるようになった。\n同時に、大きくなった点ほど、誰かに狙われるようになることも知った。\nかつて、誰よりも大きく育った点がいたという——伝説のように語られる、「赤い点」の噂。'
+    },
+    {
+      id: 'hidden_story_3', order: 3, icon: '📙', title: '第三の記憶・捕食',
+      text: '己より小さな点を飲み込んだとき、妙な感覚があった。\n相手の記憶の欠片が、一瞬だけ流れ込んでくるような——そんな気がしたのだ。\n赤い点は、来る日も来る日もそれを繰り返し、やがて誰も敵わないほどの力を得たという。'
+    },
+    {
+      id: 'hidden_story_4', order: 4, icon: '📘', title: '第四の記憶・試練',
+      text: '一度も倒れることなく、ラウンドを生き延びた。\nこの世界のルールが、少しずつわかってくる気がする。\n赤い点も、幾多のラウンドを生き延びた末に、ついに誰も追いつけない領域へ達したそうだ。ただし——その代償もあったらしい。'
+    },
+    {
+      id: 'hidden_story_5', order: 5, icon: '📕', title: '第五の記憶・頂点',
+      text: 'ランキングの頂点に立ったとき、視界の端を赤い光がよぎった気がした。\nそれは幻だったのか、それとも——かつて頂点に立ち続けた「赤い点」が、まだこの世界のどこかで眠っている証なのか。'
+    },
+    {
+      id: 'hidden_story_6', order: 6, icon: '📓', title: '終章・真実',
+      text: 'ヒミツの部屋に隠されていたのは、小さなログファイルだった。\n\n『わたしは、点として生まれ、点として大きくなり、点としてすべてを飲み込んだ。\nだが最後に残ったのは、ただの寂しさだった。\n次にここへ来る者へ——大きくなることより、誰かと一緒に遊ぶことを、忘れないでほしい。』\n\n——赤い点より'
+    }
+  ];
+  const STORY_TOTAL = STORY_FRAGMENTS.length;
+
+  let storyTypeTimer = null;
+  function playStoryTypewriter(text) {
+    if (storyTypeTimer) clearInterval(storyTypeTimer);
+    storyModalText.innerHTML = '<span class="cursor">▌</span>';
+    let i = 0;
+    storyTypeTimer = setInterval(() => {
+      i++;
+      const shown = text.slice(0, i);
+      storyModalText.innerHTML = escapeHtml(shown).replace(/\n/g, '<br>') + '<span class="cursor">▌</span>';
+      if (i >= text.length) {
+        clearInterval(storyTypeTimer);
+        storyTypeTimer = null;
+      }
+    }, 35);
+  }
+
+  // 物語の欠片を1つ解除する(まだ見つけていなければ、演出付きで表示する)
+  function unlockStoryFragment(fragmentId) {
+    if (achievementUnlocked[fragmentId]) return; // 既に見つけている欠片
+    const frag = STORY_FRAGMENTS.find(f => f.id === fragmentId);
+    if (!frag) return;
+    unlockAchievement(fragmentId);
+    storyModalProgress.textContent = `断片 ${frag.order} / ${STORY_TOTAL}`;
+    storyModalTitle.textContent = `${frag.icon} ${frag.title}`;
+    storyModal.classList.remove('hidden');
+    playStoryTypewriter(frag.text);
+    if (settings.particlesEnabled) spawnConfettiAtScreenCenter();
+
+    // 6つすべて集まったら、真実の実績を解除して特別な演出を付与する
+    const allFound = STORY_FRAGMENTS.every(f => achievementUnlocked[f.id]);
+    if (allFound && !achievementUnlocked['hidden_story_true']) {
+      setTimeout(() => {
+        unlockAchievement('hidden_story_true');
+        storyModalProgress.textContent = '真実';
+        storyModalTitle.textContent = '🌈 赤い点の真実';
+        storyModal.classList.remove('hidden');
+        playStoryTypewriter('すべての記憶が繋がった。\n「赤い点」の正体は、この世界を遊び尽くした、かつての誰かだったのだろう。\nその魂は、今こうしてあなたの色に宿った。\n\n——あなたの点は、これからずっと虹色に輝き続ける。');
+        if (settings.particlesEnabled) spawnConfettiAtScreenCenter();
+      }, 600);
+    }
+  }
+  if (storyModalCloseBtn) {
+    storyModalCloseBtn.addEventListener('click', () => {
+      storyModal.classList.add('hidden');
+      if (storyTypeTimer) { clearInterval(storyTypeTimer); storyTypeTimer = null; }
+    });
+  }
+  if (storyModal) {
+    storyModal.addEventListener('click', (e) => { if (e.target === storyModal) storyModalCloseBtn.click(); });
+  }
+
   // ----- 絵文字コンボ(表示順どおりに😂😭😡🔥👍💀を押す) -----
-  const EMOTE_COMBO_SEQUENCE = ['laugh', 'cry', 'angry', 'fire', 'thumbsup', 'skull'];
+  const EMOTE_COMBO_SEQUENCE = ['laugh', 'cry', 'angry', 'fire', 'thumbsup', 'skull', 'wow', 'cool', 'party', 'heart', 'wave', 'hundred'];
   let emoteComboProgress = [];
   let emoteComboTimer = null;
   function trackEmoteCombo(type) {
@@ -888,7 +1026,7 @@
       emoteComboProgress = emoteComboProgress.slice(-EMOTE_COMBO_SEQUENCE.length);
     }
     if (emoteComboTimer) clearTimeout(emoteComboTimer);
-    emoteComboTimer = setTimeout(() => { emoteComboProgress = []; }, 8000);
+    emoteComboTimer = setTimeout(() => { emoteComboProgress = []; }, 15000);
     if (emoteComboProgress.length === EMOTE_COMBO_SEQUENCE.length &&
         emoteComboProgress.every((t, i) => t === EMOTE_COMBO_SEQUENCE[i])) {
       emoteComboProgress = [];
@@ -1543,7 +1681,7 @@
   });
 
   // ===== 絵文字タウント =====
-  const EMOTE_ORDER = ['laugh', 'cry', 'angry', 'fire', 'thumbsup', 'skull'];
+  const EMOTE_ORDER = ['laugh', 'cry', 'angry', 'fire', 'thumbsup', 'skull', 'wow', 'cool', 'party', 'heart', 'wave', 'hundred'];
   function sendEmote(type) {
     if (joined && !spectating) {
       socket.emit('emote', { type });
@@ -1963,24 +2101,80 @@
     pointerActive = false;
   });
 
+  // ===== スマホ用バーチャルジョイスティック =====
+  // 指を置いた場所にジョイスティックが浮かび上がり、そこからの相対移動で操作する
+  // (画面中央基準より直感的で、片手操作しやすい)
+  const JOYSTICK_MAX_RADIUS = 55;
+  let joystickTouchId = null;
+  let joystickOriginX = 0;
+  let joystickOriginY = 0;
+
+  function showJoystickAt(x, y) {
+    joystickOriginX = x;
+    joystickOriginY = y;
+    joystickBase.style.left = `${x}px`;
+    joystickBase.style.top = `${y}px`;
+    joystickKnob.style.transform = 'translate(-50%, -50%)';
+    joystickBase.classList.remove('hidden');
+  }
+  function updateJoystickKnob(clientX, clientY) {
+    let dx = clientX - joystickOriginX;
+    let dy = clientY - joystickOriginY;
+    const len = Math.hypot(dx, dy);
+    const clampedLen = Math.min(len, JOYSTICK_MAX_RADIUS);
+    if (len > 0) {
+      dx = (dx / len) * clampedLen;
+      dy = (dy / len) * clampedLen;
+    }
+    joystickKnob.style.transform = `translate(${dx - 24}px, ${dy - 24}px)`;
+    const deadzone = 6;
+    if (clampedLen < deadzone) {
+      dirX = 0;
+      dirY = 0;
+      return;
+    }
+    const power = clampedLen / JOYSTICK_MAX_RADIUS;
+    const nlen = Math.hypot(dx, dy) || 1;
+    dirX = (dx / nlen) * power;
+    dirY = (dy / nlen) * power;
+  }
+  function hideJoystick() {
+    joystickBase.classList.add('hidden');
+    joystickTouchId = null;
+    pointerActive = false;
+    dirX = 0;
+    dirY = 0;
+  }
+
   canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
-    const t = e.touches[0];
+    if (settings.wasdOnly) return; // WASD専用モード中はタッチ移動を無効化
+    if (joystickTouchId !== null) return; // 既に操作中の指があれば無視(絵文字連打などとの誤操作防止)
+    const t = e.changedTouches[0];
+    joystickTouchId = t.identifier;
     pointerActive = true;
-    updateDirFromClient(t.clientX, t.clientY);
+    showJoystickAt(t.clientX, t.clientY);
+    updateJoystickKnob(t.clientX, t.clientY);
   }, { passive: false });
 
   canvas.addEventListener('touchmove', (e) => {
     e.preventDefault();
-    const t = e.touches[0];
-    updateDirFromClient(t.clientX, t.clientY);
+    if (joystickTouchId === null) return;
+    const t = Array.from(e.changedTouches).find(x => x.identifier === joystickTouchId);
+    if (!t) return;
+    updateJoystickKnob(t.clientX, t.clientY);
   }, { passive: false });
 
+  function onJoystickTouchEnd(e) {
+    const ended = Array.from(e.changedTouches).some(t => t.identifier === joystickTouchId);
+    if (ended) hideJoystick();
+  }
   canvas.addEventListener('touchend', (e) => {
     e.preventDefault();
-    pointerActive = false;
-    dirX = 0;
-    dirY = 0;
+    onJoystickTouchEnd(e);
+  }, { passive: false });
+  canvas.addEventListener('touchcancel', (e) => {
+    onJoystickTouchEnd(e);
   }, { passive: false });
 
   // ===== PC: WASD / 矢印キーでの移動 =====
@@ -2346,6 +2540,26 @@
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('👑', x, y - r * 1.85 - 14);
+      }
+
+      // 隠し要素で虹色スキンを獲得した自分には、小さな輝く粒のリングを表示する
+      // (物語をすべて読み終えた「赤い点の真実」、または秘密のコードネーム参加で獲得)
+      if (p.id === myId && (secretRainbowSkin || achievementUnlocked['hidden_story_true'])) {
+        const hue2 = (nowMs / 6) % 360;
+        ctx.save();
+        ctx.translate(x, y);
+        for (let k = 0; k < 6; k++) {
+          const ang = -nowMs / 400 + (k * Math.PI * 2) / 6;
+          const px = Math.cos(ang) * r * 1.2;
+          const py = Math.sin(ang) * r * 1.2;
+          ctx.beginPath();
+          ctx.arc(px, py, 2.2, 0, Math.PI * 2);
+          ctx.fillStyle = `hsl(${(hue2 + k * 60) % 360}, 100%, 72%)`;
+          ctx.shadowColor = `hsl(${(hue2 + k * 60) % 360}, 100%, 60%)`;
+          ctx.shadowBlur = 6;
+          ctx.fill();
+        }
+        ctx.restore();
       }
 
       // パワーアップ中は炎のように揺らぐ二重リングを表示

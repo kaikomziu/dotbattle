@@ -33,6 +33,14 @@
 
         <div class="settings-row">
           <div class="settings-label">
+            <div class="settings-title">🚫🖱️ WASD専用モード</div>
+            <div class="settings-desc">マウス/タッチでの移動を無効化し、キーボードのみで操作する(PC推奨・物理キーボード必須)</div>
+          </div>
+          <button id="settingWasdOnlyBtn" class="toggle-btn">OFF</button>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label">
             <div class="settings-title">🔊 効果音</div>
             <div class="settings-desc">キル音・アイテム取得音などのSE</div>
           </div>
@@ -151,11 +159,23 @@
       <h2>🎁 ヒミツの部屋</h2>
       <p style="font-size:13px;line-height:1.8;color:#cfd8e8;text-align:center;">
         よくぞここまで辿り着いた。<br>
-        ここには特に何もないが、探究心だけは本物だ。<br>
-        引き続き、良きドットバトルライフを。
+        誰も気づかないような場所に、小さなログファイルが置かれている。<br>
+        …何かの記録のようだ。
       </p>
       <div class="modal-actions">
         <button id="secretRoomCloseBtn">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 物語の欠片モーダル(進行度に応じて表示され、少しずつ物語が明らかになる) -->
+  <div id="storyModal" class="modal hidden">
+    <div class="modal-box story-box">
+      <p id="storyModalProgress" class="story-progress">断片 1 / 6</p>
+      <h2 id="storyModalTitle">📖 第一の記憶</h2>
+      <p id="storyModalText" class="story-text"></p>
+      <div class="modal-actions">
+        <button id="storyModalCloseBtn">閉じる</button>
       </div>
     </div>
   </div>
@@ -268,6 +288,12 @@
   <!-- ゲーム画面 -->
   <div id="gameUI" class="hidden">
     <canvas id="canvas"></canvas>
+
+    <!-- スマホ用バーチャルジョイスティック(タッチした位置に浮かび上がる) -->
+    <div id="joystickBase" class="hidden">
+      <div id="joystickKnob"></div>
+    </div>
+
     <div id="hud">
       <div id="scoreBoxWrap">
         <div id="scoreBox">スコア: <span id="scoreVal">0</span></div>
@@ -319,6 +345,12 @@
       <button data-emote="fire" title="ナイス">🔥</button>
       <button data-emote="thumbsup" title="いいね">👍</button>
       <button data-emote="skull" title="やられた">💀</button>
+      <button data-emote="wow" title="驚き">😮</button>
+      <button data-emote="cool" title="クール">😎</button>
+      <button data-emote="party" title="お祝い">🎉</button>
+      <button data-emote="heart" title="ラブ">❤️</button>
+      <button data-emote="wave" title="挨拶">👋</button>
+      <button data-emote="hundred" title="満点">💯</button>
     </div>
 
     <!-- 観戦モード用バー -->

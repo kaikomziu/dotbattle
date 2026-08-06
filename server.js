@@ -103,7 +103,7 @@ const STREAK_LABELS = {
 };
 
 // ===== 絵文字タウント =====
-const EMOTE_TYPES = ['laugh', 'cry', 'angry', 'fire', 'thumbsup', 'skull'];
+const EMOTE_TYPES = ['laugh', 'cry', 'angry', 'fire', 'thumbsup', 'skull', 'wow', 'cool', 'party', 'heart', 'wave', 'hundred'];
 const EMOTE_COOLDOWN_MS = 1200;
 
 // ===== ゴールデンフード(ランダムイベント) =====
