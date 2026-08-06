@@ -48,6 +48,7 @@
   const bulkScopeSelect = document.getElementById('bulkScopeSelect');
   const spectateBtn = document.getElementById('spectateBtn');
   const spectateBar = document.getElementById('spectateBar');
+  const spectateTargetSelect = document.getElementById('spectateTargetSelect');
   const exitSpectateBtn = document.getElementById('exitSpectateBtn');
   const boostBtn = document.getElementById('boostBtn');
   const roundBar = document.getElementById('roundBar');
@@ -1148,8 +1149,10 @@
   let latestState = { players: [], food: [] };
   let joined = false;
   let spectating = false;
+  let spectateTargetId = null; // 観戦中に手動で選んだ相手のID(nullなら1位を自動追尾)
   let isAdmin = false;
   let lastAdminListRender = 0;
+  let lastSpectateSelectRender = 0;
 
   function resizeCanvas() {
     canvas.width = window.innerWidth;
@@ -1187,6 +1190,8 @@
     updateAdminUIVisibility();
     updateBoostButton();
     if (spectating) {
+      spectateTargetId = null;
+      refreshSpectateTargetOptions();
       unlockAchievement('spectate_once');
     } else {
       registerGamePlayed();
@@ -1217,6 +1222,15 @@
       diedThisRound = false;
     }
     if (state.round) lastRoundStateSeen = state.round.state;
+
+    // 観戦対象の選択肢も同様に1秒間隔で更新(操作中は上書きしない)
+    if (spectating) {
+      const now2 = Date.now();
+      if (now2 - lastSpectateSelectRender > 1000) {
+        lastSpectateSelectRender = now2;
+        refreshSpectateTargetOptions();
+      }
+    }
 
     // 管理者一覧は毎フレーム描画すると操作しづらいため1秒間隔に間引く。
     // また入力欄にフォーカス中は上書きしないようにする。
@@ -1669,11 +1683,17 @@
   exitSpectateBtn.addEventListener('click', () => {
     // 観戦をやめてロビーに戻り、名前を入力してプレイに参加できるようにする
     spectating = false;
+    spectateTargetId = null;
     joined = false;
     spectateBar.classList.add('hidden');
     gameUI.classList.add('hidden');
     lobby.classList.remove('hidden');
   });
+  if (spectateTargetSelect) {
+    spectateTargetSelect.addEventListener('change', () => {
+      spectateTargetId = spectateTargetSelect.value || null;
+    });
+  }
 
   // ===== パワーアップ(自分のスコアを消費してスピードアップ) =====
   boostBtn.addEventListener('click', () => {
@@ -2084,6 +2104,26 @@
   }
 
   // アナウンス送信先セレクトを現在の人間プレイヤー一覧で更新(選択中の値は維持)
+  function refreshSpectateTargetOptions() {
+    if (!spectateTargetSelect) return;
+    if (spectateTargetSelect === document.activeElement) return; // 操作中は上書きしない
+    const prev = spectateTargetSelect.value;
+    const alive = [...(latestState.players || [])].filter(p => p.alive).sort((a, b) => b.mass - a.mass);
+    let html = '<option value="">🔀 自動(1位を追う)</option>';
+    for (const p of alive) {
+      const tag = p.isBot ? '🤖' : '';
+      html += `<option value="${p.id}">${tag}${escapeHtml(p.name)} (${Math.round(p.mass)})</option>`;
+    }
+    spectateTargetSelect.innerHTML = html;
+    // 選んでいた相手がまだ生きていれば選択を復元、いなければ自動に戻す
+    if ([...spectateTargetSelect.options].some(o => o.value === prev)) {
+      spectateTargetSelect.value = prev;
+    } else {
+      spectateTargetSelect.value = '';
+      spectateTargetId = null;
+    }
+  }
+
   function refreshAnnounceTargets() {
     if (!announceTargetSelect) return;
     if (announceTargetSelect === document.activeElement) return; // 操作中は上書きしない
@@ -2169,6 +2209,7 @@
   let pointerActive = false;
 
   function updateDirFromClient(clientX, clientY) {
+    if (settings.wasdOnly) { dirX = 0; dirY = 0; return; } // WASD専用モード中はマウス移動を無効化
     const cx = window.innerWidth / 2;
     const cy = window.innerHeight / 2;
     let dx = clientX - cx;
@@ -2335,6 +2376,12 @@
   function getSpectateCameraTarget() {
     const alive = latestState.players.filter(p => p.alive);
     if (alive.length === 0) return null;
+    if (spectateTargetId) {
+      const picked = alive.find(p => p.id === spectateTargetId);
+      if (picked) return picked;
+      // 選んでいた相手がいなくなった(退出/死亡)ので自動追尾に戻す
+      spectateTargetId = null;
+    }
     return alive.reduce((best, p) => (p.mass > best.mass ? p : best), alive[0]);
   }
 
