@@ -101,6 +101,26 @@
   const minimapCtx = minimapCanvas.getContext('2d');
   const emoteBar = document.getElementById('emoteBar');
 
+  // 個人設定関連の要素
+  const settingsOpenBtn = document.getElementById('settingsOpenBtn');
+  const settingsModal = document.getElementById('settingsModal');
+  const settingsCloseBtn = document.getElementById('settingsCloseBtn');
+  const settingWasdBtn = document.getElementById('settingWasdBtn');
+  const settingSoundBtn = document.getElementById('settingSoundBtn');
+  const settingShakeBtn = document.getElementById('settingShakeBtn');
+  const settingParticlesBtn = document.getElementById('settingParticlesBtn');
+  const settingMinimapBtn = document.getElementById('settingMinimapBtn');
+  const settingFeedBtn = document.getElementById('settingFeedBtn');
+  const accountSettingsLoggedIn = document.getElementById('accountSettingsLoggedIn');
+  const accountSettingsLoggedOut = document.getElementById('accountSettingsLoggedOut');
+  const changeUsernameInput = document.getElementById('changeUsernameInput');
+  const changeUsernameBtn = document.getElementById('changeUsernameBtn');
+  const changeUsernameMsg = document.getElementById('changeUsernameMsg');
+  const currentPasswordInput = document.getElementById('currentPasswordInput');
+  const newPasswordInput = document.getElementById('newPasswordInput');
+  const changePasswordBtn = document.getElementById('changePasswordBtn');
+  const changePasswordMsg = document.getElementById('changePasswordMsg');
+
   const EMOTE_ICONS = { laugh: '😂', cry: '😭', angry: '😡', fire: '🔥', thumbsup: '👍', skull: '💀' };
 
   const TEAM_COLORS = { red: '#ff5566', blue: '#3399ff' };
@@ -572,6 +592,125 @@
     doJoin();
   });
 
+  // ========================================================
+  // ===== 個人設定(この端末のブラウザだけに保存、他人には影響しない) =====
+  // ========================================================
+  const SETTINGS_DEFAULTS = {
+    wasdEnabled: true,
+    soundEnabled: true,
+    shakeEnabled: true,
+    particlesEnabled: true,
+    minimapEnabled: true,
+    feedEnabled: true
+  };
+  function loadSettings() {
+    try {
+      const raw = localStorage.getItem('dotbattle_settings');
+      return raw ? Object.assign({}, SETTINGS_DEFAULTS, JSON.parse(raw)) : Object.assign({}, SETTINGS_DEFAULTS);
+    } catch (e) {
+      return Object.assign({}, SETTINGS_DEFAULTS);
+    }
+  }
+  const settings = loadSettings();
+  function saveSettings() {
+    try { localStorage.setItem('dotbattle_settings', JSON.stringify(settings)); } catch (e) { /* noop */ }
+  }
+
+  function setToggleBtnState(btn, on) {
+    btn.textContent = on ? 'ON' : 'OFF';
+    btn.classList.toggle('on', on);
+    btn.classList.toggle('off', !on);
+  }
+  function refreshSettingsButtons() {
+    setToggleBtnState(settingWasdBtn, settings.wasdEnabled);
+    setToggleBtnState(settingSoundBtn, settings.soundEnabled);
+    setToggleBtnState(settingShakeBtn, settings.shakeEnabled);
+    setToggleBtnState(settingParticlesBtn, settings.particlesEnabled);
+    setToggleBtnState(settingMinimapBtn, settings.minimapEnabled);
+    setToggleBtnState(settingFeedBtn, settings.feedEnabled);
+  }
+  function bindSettingToggle(btn, key) {
+    btn.addEventListener('click', () => {
+      settings[key] = !settings[key];
+      saveSettings();
+      refreshSettingsButtons();
+      if (key === 'minimapEnabled') {
+        minimapCanvas.classList.toggle('hidden', !settings.minimapEnabled);
+      }
+      if (key === 'feedEnabled' && !settings.feedEnabled) {
+        killFeed.innerHTML = '';
+        feedItems.length = 0;
+      }
+    });
+  }
+  bindSettingToggle(settingWasdBtn, 'wasdEnabled');
+  bindSettingToggle(settingSoundBtn, 'soundEnabled');
+  bindSettingToggle(settingShakeBtn, 'shakeEnabled');
+  bindSettingToggle(settingParticlesBtn, 'particlesEnabled');
+  bindSettingToggle(settingMinimapBtn, 'minimapEnabled');
+  bindSettingToggle(settingFeedBtn, 'feedEnabled');
+  refreshSettingsButtons();
+  if (!settings.minimapEnabled) minimapCanvas.classList.add('hidden');
+
+  function openSettingsModal() {
+    refreshSettingsButtons();
+    accountSettingsLoggedIn.classList.toggle('hidden', !accountUsername);
+    accountSettingsLoggedOut.classList.toggle('hidden', !!accountUsername);
+    changeUsernameMsg.textContent = '';
+    changePasswordMsg.textContent = '';
+    settingsModal.classList.remove('hidden');
+  }
+  function closeSettingsModal() { settingsModal.classList.add('hidden'); }
+  settingsOpenBtn.addEventListener('click', openSettingsModal);
+  settingsCloseBtn.addEventListener('click', closeSettingsModal);
+  settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) closeSettingsModal(); });
+
+  // ----- アカウント設定: ユーザー名変更 -----
+  changeUsernameBtn.addEventListener('click', () => {
+    const newUsername = changeUsernameInput.value.trim();
+    if (!newUsername) {
+      changeUsernameMsg.textContent = '新しいユーザー名を入力してください';
+      return;
+    }
+    socket.emit('changeUsername', { token: accountToken, newUsername });
+  });
+  socket.on('changeUsernameResult', (res) => {
+    if (res.success) {
+      accountUsername = res.username;
+      accountUsernameDisplay.textContent = res.username;
+      changeUsernameMsg.textContent = '✅ ユーザー名を変更しました';
+      changeUsernameInput.value = '';
+    } else {
+      changeUsernameMsg.textContent = res.message || '変更に失敗しました';
+    }
+  });
+
+  // ----- アカウント設定: パスワード変更 -----
+  changePasswordBtn.addEventListener('click', () => {
+    const currentPassword = currentPasswordInput.value;
+    const newPassword = newPasswordInput.value;
+    if (!currentPassword || !newPassword) {
+      changePasswordMsg.textContent = '現在のパスワードと新しいパスワードを入力してください';
+      return;
+    }
+    socket.emit('changePassword', { token: accountToken, currentPassword, newPassword });
+  });
+  socket.on('changePasswordResult', (res) => {
+    if (res.success) {
+      changePasswordMsg.textContent = '✅ パスワードを変更しました';
+      currentPasswordInput.value = '';
+      newPasswordInput.value = '';
+    } else {
+      changePasswordMsg.textContent = res.message || '変更に失敗しました';
+    }
+  });
+
+  // ----- ゲスト名を記憶して次回自動入力 -----
+  try {
+    const savedName = localStorage.getItem('dotbattle_guest_name');
+    if (savedName) nameInput.value = savedName;
+  } catch (e) { /* noop */ }
+
   let myId = null;
   let worldSize = 3000;
   let latestState = { players: [], food: [] };
@@ -769,6 +908,7 @@
   // ===== 紙吹雪(ラウンド優勝時) =====
   let confetti = [];
   function spawnConfetti() {
+    if (!settings.particlesEnabled) return;
     const colors = ['#ff5566', '#33ccff', '#ffcc33', '#66ff99', '#cc66ff', '#ff9933'];
     for (let i = 0; i < 120; i++) {
       confetti.push({
@@ -832,6 +972,7 @@
   const feedItems = [];
   const FEED_ICONS = { kill: '⚔️', infect: '🧟', item: '🎁', golden: '🌟' };
   function pushFeedItem(text, kind) {
+    if (!settings.feedEnabled) return;
     const el = document.createElement('div');
     el.className = `feed-item ${kind || ''}`;
     el.textContent = `${FEED_ICONS[kind] || '📢'} ${text}`;
@@ -856,6 +997,7 @@
   let shakeUntil = 0;
   let shakeMagnitude = 0;
   function triggerShake(magnitude, durationMs) {
+    if (!settings.shakeEnabled) return;
     shakeMagnitude = magnitude;
     shakeUntil = Date.now() + durationMs;
   }
@@ -867,6 +1009,7 @@
   // ===== パーティクル =====
   let particles = [];
   function spawnParticles(x, y, color, count) {
+    if (!settings.particlesEnabled) return;
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 60 + Math.random() * 140;
@@ -884,6 +1027,7 @@
   }
   // 減速せずゆっくり漂う、細かい残像用パーティクル(ブーストの尾など)
   function spawnTrailParticle(x, y, color) {
+    if (!settings.particlesEnabled) return;
     particles.push({
       x: x + (Math.random() - 0.5) * 8,
       y: y + (Math.random() - 0.5) * 8,
@@ -901,6 +1045,7 @@
   let flashStartAt = 0;
   let flashEndAt = 0;
   function triggerFlash(color, durationMs, peakAlpha) {
+    if (!settings.shakeEnabled) return;
     flashColor = color;
     flashStartAt = Date.now();
     flashEndAt = Date.now() + durationMs;
@@ -911,24 +1056,28 @@
   // ===== 衝撃波リング =====
   let shockwaves = [];
   function spawnShockwave(x, y, color, maxRadius) {
+    if (!settings.particlesEnabled) return;
     shockwaves.push({ x, y, color, maxRadius, startAt: Date.now(), durationMs: 550 });
   }
 
   // ===== カメラパンチ(キル時などのズームキック) =====
   let zoomPunch = 0;
   function triggerZoomPunch(amount) {
+    if (!settings.shakeEnabled) return;
     zoomPunch = Math.min(0.45, zoomPunch + amount);
   }
 
   // ===== インパクトの放射線(自分に効果があった瞬間だけ表示) =====
   let impactLines = null; // { startAt }
   function triggerImpactLines() {
+    if (!settings.shakeEnabled) return;
     impactLines = { startAt: Date.now() };
   }
 
   // ===== 破片パーティクル(被食などの派手な爆発用) =====
   let shards = [];
   function spawnShards(x, y, color, count) {
+    if (!settings.particlesEnabled) return;
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = 100 + Math.random() * 260;
@@ -949,6 +1098,7 @@
   // ===== フローティングテキスト(KILL!/+150 など浮かび上がる文字) =====
   let floatingTexts = [];
   function spawnFloatingText(x, y, text, color, size) {
+    if (!settings.particlesEnabled) return;
     floatingTexts.push({ x, y, text, color, size: size || 20, startAt: Date.now(), durationMs: 1100 });
   }
 
@@ -994,6 +1144,7 @@
     osc.stop(startT + dur + 0.02);
   }
   function playSound(kind, opt) {
+    if (!settings.soundEnabled) return;
     const ac = ensureAudioCtx();
     if (!ac) return;
     const now = ac.currentTime;
@@ -1054,6 +1205,7 @@
 
   function doGuestJoin() {
     const name = nameInput.value.trim() || 'プレイヤー' + Math.floor(Math.random() * 1000);
+    try { localStorage.setItem('dotbattle_guest_name', name); } catch (e) { /* noop */ }
     socket.emit('join', { name });
   }
   // ログイン中ならアカウントで、ゲストならゲストとして(再)参加する
@@ -1567,7 +1719,7 @@
   }
 
   window.addEventListener('keydown', (e) => {
-    if (isTypingInField()) return;
+    if (isTypingInField() || !settings.wasdEnabled) return;
     const key = e.key.toLowerCase();
     if (MOVE_KEYS.has(key)) {
       keysPressed.add(key);
@@ -1585,7 +1737,7 @@
   // 一定間隔でサーバーに入力を送信(観戦中は送らない。WASD入力があればそちらを優先)
   setInterval(() => {
     if (!joined || spectating) return;
-    if (keysPressed.size > 0) {
+    if (settings.wasdEnabled && keysPressed.size > 0) {
       const kd = computeKeyboardDir();
       socket.emit('input', { dx: kd.dx, dy: kd.dy });
     } else {
@@ -2162,6 +2314,7 @@
 
   // ===== ミニマップ =====
   function drawMinimap(camX, camY) {
+    if (!settings.minimapEnabled) return;
     const size = minimapCanvas.width;
     minimapCtx.clearRect(0, 0, size, size);
     minimapCtx.fillStyle = 'rgba(10,16,28,0.4)';

@@ -588,6 +588,68 @@ io.on('connection', (socket) => {
     if (token) sessions.delete(token);
   });
 
+  // ===== ユーザー名の変更 =====
+  socket.on('changeUsername', (data) => {
+    const token = data && data.token;
+    const currentUsername = token ? getSessionUsername(token) : null;
+    if (!currentUsername) {
+      socket.emit('changeUsernameResult', { success: false, message: 'ログインし直してください' });
+      return;
+    }
+    const newUsername = (data && data.newUsername || '').toString().trim();
+    if (newUsername.length < USERNAME_MIN || newUsername.length > USERNAME_MAX) {
+      socket.emit('changeUsernameResult', { success: false, message: `ユーザー名は${USERNAME_MIN}〜${USERNAME_MAX}文字にしてください` });
+      return;
+    }
+    const oldKey = currentUsername.toLowerCase();
+    const newKey = newUsername.toLowerCase();
+    if (newKey !== oldKey && users[newKey]) {
+      socket.emit('changeUsernameResult', { success: false, message: 'そのユーザー名は既に使われています' });
+      return;
+    }
+    const user = users[oldKey];
+    if (!user) {
+      socket.emit('changeUsernameResult', { success: false, message: 'アカウントが見つかりません' });
+      return;
+    }
+    delete users[oldKey];
+    user.username = newUsername;
+    users[newKey] = user;
+    saveUsers();
+    // セッション・現在参加中のプレイヤー名も更新
+    const session = sessions.get(token);
+    if (session) session.username = newUsername;
+    if (player && player.accountUsername === currentUsername) {
+      player.accountUsername = newUsername;
+      player.name = newUsername;
+    }
+    socket.emit('changeUsernameResult', { success: true, username: newUsername });
+  });
+
+  // ===== パスワードの変更 =====
+  socket.on('changePassword', (data) => {
+    const token = data && data.token;
+    const currentUsername = token ? getSessionUsername(token) : null;
+    if (!currentUsername) {
+      socket.emit('changePasswordResult', { success: false, message: 'ログインし直してください' });
+      return;
+    }
+    const currentPassword = (data && data.currentPassword || '').toString();
+    const newPassword = (data && data.newPassword || '').toString();
+    const user = users[currentUsername.toLowerCase()];
+    if (!user || !bcrypt.compareSync(currentPassword, user.passwordHash)) {
+      socket.emit('changePasswordResult', { success: false, message: '現在のパスワードが違います' });
+      return;
+    }
+    if (newPassword.length < PASSWORD_MIN) {
+      socket.emit('changePasswordResult', { success: false, message: `新しいパスワードは${PASSWORD_MIN}文字以上にしてください` });
+      return;
+    }
+    user.passwordHash = bcrypt.hashSync(newPassword, 10);
+    saveUsers();
+    socket.emit('changePasswordResult', { success: true });
+  });
+
   socket.on('join', (data) => {
     const token = data && data.token;
     const accountUsername = token ? getSessionUsername(token) : null;

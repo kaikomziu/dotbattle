@@ -12,7 +12,89 @@
   <div id="topRightBtns">
     <button id="helpGameBtn" title="遊び方">❓</button>
     <button id="achievementsGameBtn" title="実績">🏆</button>
+    <button id="settingsOpenBtn" title="設定">🎛️</button>
     <button id="adminGearBtn" title="管理者ログイン">⚙</button>
+  </div>
+
+  <!-- 個人設定モーダル -->
+  <div id="settingsModal" class="modal hidden">
+    <div class="modal-box wide">
+      <h2>🎛️ 設定</h2>
+      <div class="modal-scroll">
+        <p class="settings-note">この端末のブラウザに保存され、他の人には影響しません。</p>
+
+        <div class="settings-row">
+          <div class="settings-label">
+            <div class="settings-title">⌨️ WASD/矢印キー操作</div>
+            <div class="settings-desc">PCでキーボード移動を使うか(切ってもマウス操作は可能)</div>
+          </div>
+          <button id="settingWasdBtn" class="toggle-btn">ON</button>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label">
+            <div class="settings-title">🔊 効果音</div>
+            <div class="settings-desc">キル音・アイテム取得音などのSE</div>
+          </div>
+          <button id="settingSoundBtn" class="toggle-btn">ON</button>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label">
+            <div class="settings-title">📳 画面揺れ・フラッシュ</div>
+            <div class="settings-desc">酔いやすい方はOFF推奨</div>
+          </div>
+          <button id="settingShakeBtn" class="toggle-btn">ON</button>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label">
+            <div class="settings-title">✨ パーティクル演出</div>
+            <div class="settings-desc">爆散・破片・紙吹雪などの粒子効果(重い端末はOFF推奨)</div>
+          </div>
+          <button id="settingParticlesBtn" class="toggle-btn">ON</button>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label">
+            <div class="settings-title">🗺️ ミニマップ表示</div>
+            <div class="settings-desc">画面右下の全体マップ</div>
+          </div>
+          <button id="settingMinimapBtn" class="toggle-btn">ON</button>
+        </div>
+
+        <div class="settings-row">
+          <div class="settings-label">
+            <div class="settings-title">💬 キルフィード表示</div>
+            <div class="settings-desc">画面右上の撃破/取得ログ</div>
+          </div>
+          <button id="settingFeedBtn" class="toggle-btn">ON</button>
+        </div>
+
+        <h4 style="margin-top:16px;">🔑 アカウント設定</h4>
+
+        <div id="accountSettingsLoggedIn" class="hidden">
+          <div class="settings-subrow">
+            <input id="changeUsernameInput" type="text" maxlength="16" placeholder="新しいユーザー名" />
+            <button id="changeUsernameBtn">変更</button>
+          </div>
+          <p id="changeUsernameMsg" class="status"></p>
+
+          <div class="settings-subrow">
+            <input id="currentPasswordInput" type="password" placeholder="現在のパスワード" autocomplete="current-password" />
+          </div>
+          <div class="settings-subrow">
+            <input id="newPasswordInput" type="password" placeholder="新しいパスワード (4文字以上)" autocomplete="new-password" />
+            <button id="changePasswordBtn">変更</button>
+          </div>
+          <p id="changePasswordMsg" class="status"></p>
+        </div>
+        <p id="accountSettingsLoggedOut" class="settings-desc">ログインするとユーザー名・パスワードを変更できます。</p>
+      </div>
+      <div class="modal-actions">
+        <button id="settingsCloseBtn">閉じる</button>
+      </div>
+    </div>
   </div>
 
   <!-- 管理者ログインモーダル -->
