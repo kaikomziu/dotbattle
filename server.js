@@ -270,6 +270,7 @@ let knockbackEnabled = true; // パワーアップ中の体当たりで相手を
 let killcamEnabled = true;   // 倒された時、一瞬相手の視点を映すキルカム
 let titlesEnabled = true;    // 実績数に応じた称号表示
 let fogEnabled = false;      // 視界の外を暗くする霧演出(デフォルトOFF、管理者が任意で有効化)
+let hiddenAreaEnabled = true; // マップのどこかにある隠しエリア(見つけると小さなボーナス+隠し実績)
 let themeLock = null;        // null=各自の設定に任せる / 'dark' / 'light' = 全員そのテーマに固定
 
 // ===== 管理者チート機能用のグローバル状態 =====
@@ -459,6 +460,22 @@ function regenerateGimmicks() {
 }
 regenerateGimmicks();
 
+// ===== 隠しエリア(マップのどこかにある、誰にも教えられていない小さな秘密の場所) =====
+let secretZone = null; // { x, y, r }
+let SECRET_ZONE_RADIUS = 70;          // 管理者が変更可能
+let SECRET_ZONE_REWARD_MASS = 60;     // 管理者が変更可能
+let SECRET_ZONE_COOLDOWN_MS = 20000;  // 管理者が変更可能(同じプレイヤーが立て続けに稼げないようにする間隔)
+
+function regenerateSecretZone() {
+  if (!hiddenAreaEnabled) { secretZone = null; return; }
+  secretZone = {
+    x: rand(250, WORLD_SIZE - 250),
+    y: rand(250, WORLD_SIZE - 250),
+    r: SECRET_ZONE_RADIUS
+  };
+}
+regenerateSecretZone();
+
 // ===== ゴールデンフード(ランダムイベント) =====
 let goldenFood = null; // { id, x, y, expiresAt }
 let nextGoldenFoodAt = Date.now() + rand(10000, 20000); // 起動後しばらくしたら最初の1個
@@ -508,6 +525,7 @@ class Player {
     this.infiniteBoost = false;  // 管理者チート: パワーアップのコスト・クールダウン無視
     this.velX = 0;                // 実際の移動速度(氷ゾーンでの慣性計算用)
     this.velY = 0;
+    this.secretZoneCooldownUntil = 0; // 隠しエリアの連続獲得防止クールダウン
   }
 
   get radius() {
@@ -1287,6 +1305,26 @@ io.on('connection', (socket) => {
     fogEnabled = !!(data && data.enabled);
   });
 
+  socket.on('admin:setHiddenAreaEnabled', (data) => {
+    if (!isAdmin(socket)) return;
+    hiddenAreaEnabled = !!(data && data.enabled);
+    regenerateSecretZone();
+  });
+
+  socket.on('admin:setSecretZoneParams', (data) => {
+    if (!isAdmin(socket)) return;
+    if (!data) return;
+    if (data.radius !== undefined) SECRET_ZONE_RADIUS = num(data.radius, SECRET_ZONE_RADIUS, 10, 300);
+    if (data.rewardMass !== undefined) SECRET_ZONE_REWARD_MASS = num(data.rewardMass, SECRET_ZONE_REWARD_MASS, 0, 5000);
+    if (data.cooldownMs !== undefined) SECRET_ZONE_COOLDOWN_MS = num(data.cooldownMs, SECRET_ZONE_COOLDOWN_MS, 0, 120000);
+    if (secretZone) secretZone.r = SECRET_ZONE_RADIUS;
+  });
+
+  socket.on('admin:relocateSecretZone', () => {
+    if (!isAdmin(socket)) return;
+    regenerateSecretZone();
+  });
+
   socket.on('admin:setThemeLock', (data) => {
     if (!isAdmin(socket)) return;
     const mode = data && data.mode;
@@ -1712,6 +1750,20 @@ setInterval(() => {
     }
   }
 
+  // ===== 隠しエリア: 見つけて足を踏み入れると小さなボーナス+隠し実績 =====
+  if (hiddenAreaEnabled && secretZone) {
+    for (const p of players.values()) {
+      if (!p.alive || now < p.secretZoneCooldownUntil) continue;
+      const d = Math.hypot(p.x - secretZone.x, p.y - secretZone.y);
+      if (d < secretZone.r) {
+        p.mass += SECRET_ZONE_REWARD_MASS;
+        p.secretZoneCooldownUntil = now + SECRET_ZONE_COOLDOWN_MS;
+        const targetSocket = io.sockets.sockets.get(p.id);
+        if (targetSocket) targetSocket.emit('secretZoneFound');
+      }
+    }
+  }
+
   // ===== ランダムアイテム: 生成と取得判定 =====
   if (itemsEnabled) {
     if (now - lastItemSpawnAt > ITEM_SPAWN_INTERVAL_MS && items.length < ITEM_MAX_COUNT) {
@@ -1948,12 +2000,14 @@ setInterval(() => {
     killcamEnabled,
     titlesEnabled,
     fogEnabled,
+    hiddenAreaEnabled,
     themeLock,
     obstacles,
     hazardZones,
     warpHoles,
     iceZones,
     gravityWells,
+    secretZone,
     kothHill,
     storm,
     goldenFood: goldenFood ? { x: goldenFood.x, y: goldenFood.y } : null,
@@ -1986,6 +2040,9 @@ setInterval(() => {
       hazardCount,
       iceCount,
       gravityCount,
+      secretZoneRadius: SECRET_ZONE_RADIUS,
+      secretZoneRewardMass: SECRET_ZONE_REWARD_MASS,
+      secretZoneCooldownMs: SECRET_ZONE_COOLDOWN_MS,
       joinLocked,
       maxPlayers
     }

@@ -70,6 +70,7 @@
   const toggleKillcamBtn = document.getElementById('toggleKillcamBtn');
   const toggleTitlesBtn = document.getElementById('toggleTitlesBtn');
   const toggleFogBtn = document.getElementById('toggleFogBtn');
+  const toggleHiddenAreaBtn = document.getElementById('toggleHiddenAreaBtn');
   const themeLockDarkBtn = document.getElementById('themeLockDarkBtn');
   const themeLockLightBtn = document.getElementById('themeLockLightBtn');
   const themeLockFreeBtn = document.getElementById('themeLockFreeBtn');
@@ -121,6 +122,11 @@
   const paramIceCount = document.getElementById('paramIceCount');
   const paramGravityCount = document.getElementById('paramGravityCount');
   const paramCountsApplyBtn = document.getElementById('paramCountsApplyBtn');
+  const paramSecretZoneRadius = document.getElementById('paramSecretZoneRadius');
+  const paramSecretZoneReward = document.getElementById('paramSecretZoneReward');
+  const paramSecretZoneCooldown = document.getElementById('paramSecretZoneCooldown');
+  const paramSecretZoneApplyBtn = document.getElementById('paramSecretZoneApplyBtn');
+  const paramSecretZoneRelocateBtn = document.getElementById('paramSecretZoneRelocateBtn');
   const paramJoinLockBtn = document.getElementById('paramJoinLockBtn');
   const paramMaxPlayers = document.getElementById('paramMaxPlayers');
   const paramMaxPlayersApplyBtn = document.getElementById('paramMaxPlayersApplyBtn');
@@ -333,6 +339,7 @@
     { id: 'hidden_leaderboard', icon: '📋', title: '本当の実力者', desc: '???', hint: 'ランキング表示を連続でタップした', cat: '🎭 隠し要素' },
     { id: 'hidden_afk', icon: '🗿', title: '置物', desc: '???', hint: '30秒間まったく動かなかった', cat: '🎭 隠し要素' },
     { id: 'hidden_adminname', icon: '🕵️', title: 'なりすまし未遂', desc: '???', hint: '管理者っぽい名前でログインを試みた', cat: '🎭 隠し要素' },
+    { id: 'hidden_secretzone', icon: '🏝️', title: '地図にない場所', desc: '???', hint: 'フィールドのどこかにある、誰にも教えられていない隠しエリアを見つけた', cat: '🎭 隠し要素' },
 
     // --- 物語の欠片(遊び進めるうちに、少しずつ明らかになっていく…) ---
     { id: 'hidden_story_1', icon: '📖', title: '第一の記憶・目覚め', desc: '???', hint: '初めて食べ物を口にした', cat: '📖 物語の欠片' },
@@ -348,7 +355,7 @@
   const HIDDEN_SECRET_IDS = [
     'hidden_stats', 'hidden_credits', 'hidden_omikuji', 'hidden_daikichi', 'hidden_retro', 'hidden_tos',
     'hidden_konami', 'hidden_logotap', 'hidden_midnight', 'hidden_namecode', 'hidden_longpress',
-    'hidden_secretroom', 'hidden_emotecombo', 'hidden_minimap', 'hidden_leaderboard', 'hidden_afk', 'hidden_adminname',
+    'hidden_secretroom', 'hidden_emotecombo', 'hidden_minimap', 'hidden_leaderboard', 'hidden_afk', 'hidden_adminname', 'hidden_secretzone',
     'hidden_story_1', 'hidden_story_2', 'hidden_story_3', 'hidden_story_4', 'hidden_story_5', 'hidden_story_6', 'hidden_story_true'
   ];
 
@@ -1439,6 +1446,10 @@
     registerWarpUsed();
   });
 
+  socket.on('secretZoneFound', () => {
+    unlockAchievement('hidden_secretzone');
+  });
+
   socket.on('roundWin', (data) => {
     registerRoundWin(data && data.mode);
     const me = getMe();
@@ -2060,6 +2071,7 @@
     setToggleBtn(toggleKillcamBtn, latestState.killcamEnabled, '😈キルカム');
     setToggleBtn(toggleTitlesBtn, latestState.titlesEnabled, '🏅称号表示');
     setToggleBtn(toggleFogBtn, latestState.fogEnabled, '🌫️霧演出');
+    setToggleBtn(toggleHiddenAreaBtn, latestState.hiddenAreaEnabled, '🗺️隠しエリア');
     if (cheatSpeedStatus) {
       const m = typeof latestState.globalSpeedMultiplier === 'number' ? latestState.globalSpeedMultiplier : 1;
       cheatSpeedStatus.textContent = `現在の速度倍率: ${m.toFixed(1)}倍`;
@@ -2102,6 +2114,9 @@
   }
   if (toggleFogBtn) {
     toggleFogBtn.addEventListener('click', () => socket.emit('admin:setFogEnabled', { enabled: !latestState.fogEnabled }));
+  }
+  if (toggleHiddenAreaBtn) {
+    toggleHiddenAreaBtn.addEventListener('click', () => socket.emit('admin:setHiddenAreaEnabled', { enabled: !latestState.hiddenAreaEnabled }));
   }
   if (themeLockDarkBtn) {
     themeLockDarkBtn.addEventListener('click', () => socket.emit('admin:setThemeLock', { mode: 'dark' }));
@@ -2230,6 +2245,19 @@
       [paramObstacleCount, paramHazardCount, paramIceCount, paramGravityCount].forEach(i => { if (i) i.value = ''; });
     });
   }
+  if (paramSecretZoneApplyBtn) {
+    paramSecretZoneApplyBtn.addEventListener('click', () => {
+      socket.emit('admin:setSecretZoneParams', {
+        radius: readNum(paramSecretZoneRadius),
+        rewardMass: readNum(paramSecretZoneReward),
+        cooldownMs: readNum(paramSecretZoneCooldown)
+      });
+      [paramSecretZoneRadius, paramSecretZoneReward, paramSecretZoneCooldown].forEach(i => { if (i) i.value = ''; });
+    });
+  }
+  if (paramSecretZoneRelocateBtn) {
+    paramSecretZoneRelocateBtn.addEventListener('click', () => socket.emit('admin:relocateSecretZone'));
+  }
   if (paramJoinLockBtn) {
     paramJoinLockBtn.addEventListener('click', () => {
       const locked = latestState.params ? !!latestState.params.joinLocked : false;
@@ -2354,6 +2382,9 @@
     if (paramHazardCount) paramHazardCount.placeholder = p.hazardCount;
     if (paramIceCount) paramIceCount.placeholder = p.iceCount;
     if (paramGravityCount) paramGravityCount.placeholder = p.gravityCount;
+    if (paramSecretZoneRadius) paramSecretZoneRadius.placeholder = p.secretZoneRadius;
+    if (paramSecretZoneReward) paramSecretZoneReward.placeholder = p.secretZoneRewardMass;
+    if (paramSecretZoneCooldown) paramSecretZoneCooldown.placeholder = p.secretZoneCooldownMs;
     if (paramMaxPlayers) paramMaxPlayers.placeholder = p.maxPlayers > 0 ? p.maxPlayers : '無制限';
     if (paramJoinLockBtn) {
       paramJoinLockBtn.textContent = `新規参加ロック: ${p.joinLocked ? 'ON' : 'OFF'}`;
@@ -2814,6 +2845,34 @@
           ctx.strokeStyle = `rgba(180,100,255,${0.45 - ring * 0.1})`;
           ctx.lineWidth = 2.5;
           ctx.stroke();
+        }
+      }
+    }
+
+    // ===== 隠しエリア(近づくまでほとんど見えない秘密の場所) =====
+    if (latestState.hiddenAreaEnabled && latestState.secretZone && me) {
+      const sz = latestState.secretZone;
+      const dist = Math.hypot(me.x - sz.x, me.y - sz.y);
+      const reveal = Math.max(0, Math.min(1, 1 - (dist - sz.r) / 300));
+      if (reveal > 0.02) {
+        const x = toX(sz.x), y = toY(sz.y), r = sz.r * zoom;
+        const shimmer = 0.5 + Math.sin(nowMs / 500) * 0.5;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,230,140,${0.05 + reveal * 0.1})`;
+        ctx.fill();
+        ctx.strokeStyle = `rgba(255,230,140,${reveal * (0.25 + shimmer * 0.3)})`;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([3, 9]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        if (reveal > 0.4) {
+          ctx.font = `${Math.max(14, 18 * zoom * reveal)}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.globalAlpha = reveal;
+          ctx.fillText('✨', x, y);
+          ctx.globalAlpha = 1;
         }
       }
     }

@@ -455,6 +455,9 @@
           <button id="toggleTitlesBtn" class="toggle-btn">🏅称号表示: -</button>
           <button id="toggleFogBtn" class="toggle-btn">🌫️霧演出: -</button>
         </div>
+        <div class="admin-row">
+          <button id="toggleHiddenAreaBtn" class="toggle-btn">🗺️隠しエリア: -</button>
+        </div>
         <p class="admin-note">🌗 テーマ固定(全員のライト/ダークを管理者が強制する)</p>
         <div class="admin-row">
           <button id="themeLockDarkBtn">🌙ダーク固定</button>
@@ -624,6 +627,19 @@
         </div>
         <div class="admin-row">
           <button id="paramCountsApplyBtn">配置数を適用して再生成</button>
+        </div>
+
+        <h5>🗺️隠しエリア</h5>
+        <div class="admin-row">
+          <label>半径<input id="paramSecretZoneRadius" type="number" min="10" max="300" /></label>
+          <label>報酬スコア<input id="paramSecretZoneReward" type="number" min="0" max="5000" /></label>
+        </div>
+        <div class="admin-row">
+          <label>再取得クールダウン(ms)<input id="paramSecretZoneCooldown" type="number" min="0" max="120000" /></label>
+        </div>
+        <div class="admin-row">
+          <button id="paramSecretZoneApplyBtn">隠しエリア設定を適用</button>
+          <button id="paramSecretZoneRelocateBtn">今すぐ別の場所に移動</button>
         </div>
 
         <h5>ルーム管理</h5>
