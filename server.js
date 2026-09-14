@@ -140,7 +140,7 @@ const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30日間
 
 /** @type {Object<string, {username: string, passwordHash: string, createdAt: number}>} キーは小文字化したユーザー名 */
 let users = {};
-/** @type {Map<string, {username: string, expiresAt: number}>} トークン→セッション情報(サーバー再起動でクリアされる) */
+/** @type {Map<string, {username: string, expiresAt: number}>} トークン→セッション情報。Redis未設定時のフォールバック(サーバー再起動でクリアされる) */
 const sessions = new Map();
 
 async function loadUsers() {
@@ -233,12 +233,34 @@ function saveGlobalStats() {
   }, 2000);
 }
 
-function createSession(username) {
+// セッションはUpstash Redisがあればそちらに保存する(サーバー再起動・Render無料枠の
+// スリープ復帰をまたいでもログインが切れないようにするため)。無ければメモリにフォールバック。
+async function createSession(username) {
   const token = crypto.randomBytes(24).toString('hex');
-  sessions.set(token, { username, expiresAt: Date.now() + SESSION_TTL_MS });
+  const expiresAt = Date.now() + SESSION_TTL_MS;
+  if (redis) {
+    try {
+      await redis.set('dotbattle:session:' + token, { username, expiresAt }, { ex: Math.floor(SESSION_TTL_MS / 1000) });
+      return token;
+    } catch (e) {
+      console.error('Redisへのセッション保存に失敗しました:', e.message);
+    }
+  }
+  sessions.set(token, { username, expiresAt });
   return token;
 }
-function getSessionUsername(token) {
+async function getSessionUsername(token) {
+  if (!token) return null;
+  if (redis) {
+    try {
+      const s = await redis.get('dotbattle:session:' + token);
+      if (!s || typeof s !== 'object') return null;
+      if (Date.now() > s.expiresAt) return null;
+      return s.username;
+    } catch (e) {
+      console.error('Redisからのセッション読み込みに失敗しました:', e.message);
+    }
+  }
   const s = sessions.get(token);
   if (!s) return null;
   if (Date.now() > s.expiresAt) {
@@ -247,7 +269,37 @@ function getSessionUsername(token) {
   }
   return s.username;
 }
-// 期限切れセッションを定期的に掃除
+async function deleteSession(token) {
+  if (!token) return;
+  if (redis) {
+    try {
+      await redis.del('dotbattle:session:' + token);
+      return;
+    } catch (e) {
+      console.error('Redisからのセッション削除に失敗しました:', e.message);
+    }
+  }
+  sessions.delete(token);
+}
+// ユーザー名変更時、既存セッションの表示名も更新する(再ログインなしで新しい名前を反映するため)
+async function updateSessionUsername(token, newUsername) {
+  if (!token) return;
+  if (redis) {
+    try {
+      const s = await redis.get('dotbattle:session:' + token);
+      if (s && typeof s === 'object') {
+        const ttlSec = Math.max(1, Math.floor((s.expiresAt - Date.now()) / 1000));
+        await redis.set('dotbattle:session:' + token, { username: newUsername, expiresAt: s.expiresAt }, { ex: ttlSec });
+      }
+      return;
+    } catch (e) {
+      console.error('Redisのセッション更新に失敗しました:', e.message);
+    }
+  }
+  const s = sessions.get(token);
+  if (s) s.username = newUsername;
+}
+// 期限切れセッションを定期的に掃除(メモリフォールバック用。Redis側はexで自動期限切れ)
 setInterval(() => {
   const now = Date.now();
   for (const [token, s] of sessions) {
@@ -673,7 +725,7 @@ io.on('connection', (socket) => {
   let player = null;
 
   // ===== アカウント登録 =====
-  socket.on('register', (data) => {
+  socket.on('register', async (data) => {
     const rawUsername = (data && data.username || '').toString().trim();
     const password = (data && data.password || '').toString();
     const key = rawUsername.toLowerCase();
@@ -693,12 +745,12 @@ io.on('connection', (socket) => {
     const passwordHash = bcrypt.hashSync(password, 10);
     users[key] = { username: rawUsername, passwordHash, createdAt: Date.now() };
     saveUsers();
-    const token = createSession(rawUsername);
+    const token = await createSession(rawUsername);
     socket.emit('registerResult', { success: true, token, username: rawUsername });
   });
 
   // ===== ログイン =====
-  socket.on('login', (data) => {
+  socket.on('login', async (data) => {
     const rawUsername = (data && data.username || '').toString().trim();
     const password = (data && data.password || '').toString();
     const key = rawUsername.toLowerCase();
@@ -707,14 +759,14 @@ io.on('connection', (socket) => {
       socket.emit('loginResult', { success: false, message: 'ユーザー名またはパスワードが違います' });
       return;
     }
-    const token = createSession(user.username);
+    const token = await createSession(user.username);
     socket.emit('loginResult', { success: true, token, username: user.username });
   });
 
   // ===== セッション再開(自動ログイン) =====
-  socket.on('resumeSession', (data) => {
+  socket.on('resumeSession', async (data) => {
     const token = data && data.token;
-    const username = token ? getSessionUsername(token) : null;
+    const username = token ? await getSessionUsername(token) : null;
     if (username) {
       socket.emit('sessionResult', { success: true, username });
     } else {
@@ -722,15 +774,15 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('logout', (data) => {
+  socket.on('logout', async (data) => {
     const token = data && data.token;
-    if (token) sessions.delete(token);
+    if (token) await deleteSession(token);
   });
 
   // ===== ユーザー名の変更 =====
-  socket.on('changeUsername', (data) => {
+  socket.on('changeUsername', async (data) => {
     const token = data && data.token;
-    const currentUsername = token ? getSessionUsername(token) : null;
+    const currentUsername = token ? await getSessionUsername(token) : null;
     if (!currentUsername) {
       socket.emit('changeUsernameResult', { success: false, message: 'ログインし直してください' });
       return;
@@ -756,8 +808,7 @@ io.on('connection', (socket) => {
     users[newKey] = user;
     saveUsers();
     // セッション・現在参加中のプレイヤー名も更新
-    const session = sessions.get(token);
-    if (session) session.username = newUsername;
+    await updateSessionUsername(token, newUsername);
     if (player && player.accountUsername === currentUsername) {
       player.accountUsername = newUsername;
       player.name = newUsername;
@@ -766,9 +817,9 @@ io.on('connection', (socket) => {
   });
 
   // ===== パスワードの変更 =====
-  socket.on('changePassword', (data) => {
+  socket.on('changePassword', async (data) => {
     const token = data && data.token;
-    const currentUsername = token ? getSessionUsername(token) : null;
+    const currentUsername = token ? await getSessionUsername(token) : null;
     if (!currentUsername) {
       socket.emit('changePasswordResult', { success: false, message: 'ログインし直してください' });
       return;
@@ -789,7 +840,7 @@ io.on('connection', (socket) => {
     socket.emit('changePasswordResult', { success: true });
   });
 
-  socket.on('join', (data) => {
+  socket.on('join', async (data) => {
     if (!players.has(socket.id)) {
       if (joinLocked && !isAdmin(socket)) {
         socket.emit('joinRejected', { message: '現在、新規参加はロックされています(管理者が解除するまでお待ちください)' });
@@ -801,7 +852,7 @@ io.on('connection', (socket) => {
       }
     }
     const token = data && data.token;
-    const accountUsername = token ? getSessionUsername(token) : null;
+    const accountUsername = token ? await getSessionUsername(token) : null;
     const name = accountUsername || (data && data.name);
     player = new Player(socket.id, name);
     player.accountUsername = accountUsername || null;
