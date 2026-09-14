@@ -262,10 +262,7 @@ const TEAM_IDS = ['red', 'blue'];
 
 // ===== 面白さ強化機能のON/OFF(管理者が切替) =====
 let itemsEnabled = true;     // ランダムアイテム
-let gimmicksEnabled = true;  // マップギミック(障害物/危険地帯/ワープ)
 let effectsEnabled = true;   // 演出(パーティクル・画面揺れ・効果音)。キルフィードは常時表示
-let iceEnabled = true;       // 氷ゾーン(滑る)
-let gravityEnabled = true;   // 重力井戸(弱く引き寄せられる)
 let knockbackEnabled = true; // パワーアップ中の体当たりで相手を弾き飛ばす
 let killcamEnabled = true;   // 倒された時、一瞬相手の視点を映すキルカム
 let titlesEnabled = true;    // 実績数に応じた称号表示
@@ -286,18 +283,7 @@ let ITEM_SPAWN_INTERVAL_MS = 3500;  // 管理者が変更可能
 let items = [];
 let lastItemSpawnAt = 0;
 
-// ===== マップギミック =====
-let obstacles = [];   // 障害物(通れない)
-let hazardZones = []; // 危険地帯(継続ダメージ)
-let warpHoles = [];   // ワープホール(2個1組)
-let hazardDamagePerSec = 8;      // 管理者が変更可能
-let iceSlipperiness = 1;         // 氷の滑りやすさ倍率(管理者が変更可能、1が標準)
-let gravityStrengthMultiplier = 1; // 重力井戸の強さ倍率(管理者が変更可能)
 let knockbackStrength = 1;       // ノックバックの強さ倍率(管理者が変更可能)
-let obstacleCount = 5;   // 管理者が変更可能(次回のギミック再生成から反映)
-let hazardCount = 2;     // 管理者が変更可能
-let iceCount = 2;        // 管理者が変更可能
-let gravityCount = 1;    // 管理者が変更可能
 
 // ===== キングオブザヒル =====
 let KOTH_SCORE_PER_SEC = 12; // 管理者が変更可能
@@ -404,62 +390,6 @@ const ITEM_LABELS = {
   mystery: '❓ミステリー'
 };
 
-// ===== マップギミック =====
-let iceZones = [];     // { id, x, y, r } 踏むと滑る(慣性が強くなる)
-let gravityWells = []; // { id, x, y, r, strength } 弱く中心へ引き寄せられる
-
-function regenerateGimmicks() {
-  obstacles = [];
-  hazardZones = [];
-  warpHoles = [];
-  iceZones = [];
-  gravityWells = [];
-  if (!gimmicksEnabled) return;
-
-  for (let i = 0; i < obstacleCount; i++) {
-    obstacles.push({
-      id: 'obs' + i,
-      x: rand(300, WORLD_SIZE - 300),
-      y: rand(300, WORLD_SIZE - 300),
-      r: rand(60, 140)
-    });
-  }
-  for (let i = 0; i < hazardCount; i++) {
-    hazardZones.push({
-      id: 'haz' + i,
-      x: rand(300, WORLD_SIZE - 300),
-      y: rand(300, WORLD_SIZE - 300),
-      r: rand(150, 250)
-    });
-  }
-  const wa = { id: 'warpA', pairId: 'warpB', x: rand(200, WORLD_SIZE - 200), y: rand(200, WORLD_SIZE - 200) };
-  const wb = { id: 'warpB', pairId: 'warpA', x: rand(200, WORLD_SIZE - 200), y: rand(200, WORLD_SIZE - 200) };
-  warpHoles = [wa, wb];
-
-  if (iceEnabled) {
-    for (let i = 0; i < iceCount; i++) {
-      iceZones.push({
-        id: 'ice' + i,
-        x: rand(300, WORLD_SIZE - 300),
-        y: rand(300, WORLD_SIZE - 300),
-        r: rand(180, 280)
-      });
-    }
-  }
-  if (gravityEnabled) {
-    for (let i = 0; i < gravityCount; i++) {
-      gravityWells.push({
-        id: 'grav' + i,
-        x: rand(400, WORLD_SIZE - 400),
-        y: rand(400, WORLD_SIZE - 400),
-        r: rand(220, 320),
-        strength: rand(40, 70)
-      });
-    }
-  }
-}
-regenerateGimmicks();
-
 // ===== 隠しエリア(マップのどこかにある、誰にも教えられていない小さな秘密の場所) =====
 let secretZone = null; // { x, y, r }
 let SECRET_ZONE_RADIUS = 70;          // 管理者が変更可能
@@ -521,10 +451,8 @@ class Player {
     this.killStreak = 0;         // 連続撃破数(一定時間空くとリセット)
     this.lastKillAt = 0;
     this.lastEmoteAt = 0;        // 絵文字タウントの連投防止
-    this.noclip = false;         // 管理者チート: 障害物をすり抜ける
+    this.noclip = false;         // 管理者チート: ノックバックを受けない
     this.infiniteBoost = false;  // 管理者チート: パワーアップのコスト・クールダウン無視
-    this.velX = 0;                // 実際の移動速度(氷ゾーンでの慣性計算用)
-    this.velY = 0;
     this.secretZoneCooldownUntil = 0; // 隠しエリアの連続獲得防止クールダウン
   }
 
@@ -1262,27 +1190,9 @@ io.on('connection', (socket) => {
     if (!itemsEnabled) items = [];
   });
 
-  socket.on('admin:setGimmicksEnabled', (data) => {
-    if (!isAdmin(socket)) return;
-    gimmicksEnabled = !!(data && data.enabled);
-    regenerateGimmicks();
-  });
-
   socket.on('admin:setEffectsEnabled', (data) => {
     if (!isAdmin(socket)) return;
     effectsEnabled = !!(data && data.enabled);
-  });
-
-  socket.on('admin:setIceEnabled', (data) => {
-    if (!isAdmin(socket)) return;
-    iceEnabled = !!(data && data.enabled);
-    regenerateGimmicks();
-  });
-
-  socket.on('admin:setGravityEnabled', (data) => {
-    if (!isAdmin(socket)) return;
-    gravityEnabled = !!(data && data.enabled);
-    regenerateGimmicks();
   });
 
   socket.on('admin:setKnockbackEnabled', (data) => {
@@ -1386,22 +1296,9 @@ io.on('connection', (socket) => {
   socket.on('admin:setGimmickStrength', (data) => {
     if (!isAdmin(socket)) return;
     if (!data) return;
-    if (data.hazardDamage !== undefined) hazardDamagePerSec = num(data.hazardDamage, hazardDamagePerSec, 0, 500);
-    if (data.iceSlipperiness !== undefined) iceSlipperiness = num(data.iceSlipperiness, iceSlipperiness, 0.1, 10);
-    if (data.gravityStrength !== undefined) gravityStrengthMultiplier = num(data.gravityStrength, gravityStrengthMultiplier, 0, 10);
     if (data.knockbackStrength !== undefined) knockbackStrength = num(data.knockbackStrength, knockbackStrength, 0, 10);
     if (data.stormDamage !== undefined) STORM_DAMAGE_PER_SEC = num(data.stormDamage, STORM_DAMAGE_PER_SEC, 0, 500);
     if (data.kothScoreRate !== undefined) KOTH_SCORE_PER_SEC = num(data.kothScoreRate, KOTH_SCORE_PER_SEC, 0, 500);
-  });
-
-  socket.on('admin:setGimmickCounts', (data) => {
-    if (!isAdmin(socket)) return;
-    if (!data) return;
-    if (data.obstacles !== undefined) obstacleCount = Math.round(num(data.obstacles, obstacleCount, 0, 30));
-    if (data.hazards !== undefined) hazardCount = Math.round(num(data.hazards, hazardCount, 0, 20));
-    if (data.ice !== undefined) iceCount = Math.round(num(data.ice, iceCount, 0, 20));
-    if (data.gravity !== undefined) gravityCount = Math.round(num(data.gravity, gravityCount, 0, 10));
-    regenerateGimmicks();
   });
 
   socket.on('admin:setJoinLocked', (data) => {
@@ -1559,31 +1456,6 @@ function computeBotAI(now) {
     let dirX = tlen > 0.001 ? dx / tlen : 0;
     let dirY = tlen > 0.001 ? dy / tlen : 0;
 
-    // 障害物回避: 近くにある障害物から反発力を加えて、壁に突っかかり続けないようにする
-    if (gimmicksEnabled && obstacles.length) {
-      let avoidX = 0, avoidY = 0;
-      for (const ob of obstacles) {
-        const odx = bot.x - ob.x, ody = bot.y - ob.y;
-        const odist = Math.hypot(odx, ody);
-        const avoidRadius = ob.r + bot.radius + 90;
-        if (odist < avoidRadius && odist > 0.001) {
-          const strength = (avoidRadius - odist) / avoidRadius;
-          avoidX += (odx / odist) * strength;
-          avoidY += (ody / odist) * strength;
-        }
-      }
-      if (avoidX !== 0 || avoidY !== 0) {
-        // 回避を優先しつつ元の目標方向にも進もうとする
-        dirX += avoidX * 2;
-        dirY += avoidY * 2;
-        const flen = Math.hypot(dirX, dirY);
-        if (flen > 0.001) {
-          dirX /= flen;
-          dirY /= flen;
-        }
-      }
-    }
-
     bot.dirX = dirX;
     bot.dirY = dirY;
 
@@ -1633,90 +1505,17 @@ setInterval(() => {
   const desiredWorldSize = worldSizeOverride !== null ? worldSizeOverride : computeDesiredWorldSize();
   WORLD_SIZE += (desiredWorldSize - WORLD_SIZE) * 0.01;
 
-  // プレイヤー移動(氷ゾーンの上では慣性が強くなり滑るようになる)
+  // プレイヤー移動
   for (const p of players.values()) {
     if (!p.alive) continue;
     if (p.frozen) continue; // 管理者に凍結されている場合は動かない
     const infectedSpeedBonus = (gameMode === 'infection' && p.infected) ? 1.15 : 1;
     const boostMultiplier = now < p.boostUntil ? BOOST_SPEED_MULTIPLIER : 1;
     const speed = Math.max(MAX_SPEED * (BASE_RADIUS / p.radius), 60) * boostMultiplier * infectedSpeedBonus * globalSpeedMultiplier;
-    const targetVelX = p.dirX * speed;
-    const targetVelY = p.dirY * speed;
-    const onIce = gimmicksEnabled && iceEnabled && !p.noclip
-      && iceZones.some(z => Math.hypot(p.x - z.x, p.y - z.y) < z.r);
-    if (onIce) {
-      // dtに関わらず一定の滑らかさになる指数補間。iceSlipperinessが大きいほど滑りやすくなる
-      const ease = Math.min(1, (1 - Math.pow(0.002, dt)) / Math.max(iceSlipperiness, 0.1));
-      p.velX += (targetVelX - p.velX) * ease;
-      p.velY += (targetVelY - p.velY) * ease;
-    } else {
-      // 通常時は即座に目標速度へ(従来通りの操作感を維持)
-      p.velX = targetVelX;
-      p.velY = targetVelY;
-    }
-    p.x += p.velX * dt;
-    p.y += p.velY * dt;
+    p.x += p.dirX * speed * dt;
+    p.y += p.dirY * speed * dt;
     p.x = Math.max(p.radius, Math.min(WORLD_SIZE - p.radius, p.x));
     p.y = Math.max(p.radius, Math.min(WORLD_SIZE - p.radius, p.y));
-  }
-
-  // ===== マップギミック(障害物・危険地帯・ワープ) =====
-  if (gimmicksEnabled) {
-    for (const p of players.values()) {
-      if (!p.alive) continue;
-      if (p.noclip) continue; // 管理者チート: 障害物・危険地帯・ワープホールをすべて無視してすり抜ける
-      // 障害物: めり込んだ分だけ押し出す
-      for (const ob of obstacles) {
-        const dx = p.x - ob.x, dy = p.y - ob.y;
-        const d = Math.hypot(dx, dy);
-        const minDist = ob.r + p.radius;
-        if (d < minDist && d > 0.001) {
-          const push = minDist - d;
-          p.x += (dx / d) * push;
-          p.y += (dy / d) * push;
-        }
-      }
-      p.x = Math.max(p.radius, Math.min(WORLD_SIZE - p.radius, p.x));
-      p.y = Math.max(p.radius, Math.min(WORLD_SIZE - p.radius, p.y));
-      // 危険地帯: 継続ダメージ
-      for (const hz of hazardZones) {
-        const d = Math.hypot(p.x - hz.x, p.y - hz.y);
-        if (d < hz.r) {
-          p.mass = Math.max(0, p.mass - hazardDamagePerSec * dt);
-        }
-      }
-      // 重力井戸: 範囲内にいる間、弱く中心へ引き寄せられる
-      if (gravityEnabled) {
-        for (const gw of gravityWells) {
-          const dx = gw.x - p.x, dy = gw.y - p.y;
-          const d = Math.hypot(dx, dy);
-          if (d < gw.r && d > 1) {
-            const pull = gw.strength * gravityStrengthMultiplier * dt;
-            p.x += (dx / d) * pull;
-            p.y += (dy / d) * pull;
-          }
-        }
-        p.x = Math.max(p.radius, Math.min(WORLD_SIZE - p.radius, p.x));
-        p.y = Math.max(p.radius, Math.min(WORLD_SIZE - p.radius, p.y));
-      }
-      // ワープホール
-      if (now > p.warpCooldownUntil) {
-        for (const w of warpHoles) {
-          const d = Math.hypot(p.x - w.x, p.y - w.y);
-          if (d < ITEM_RADIUS + p.radius * 0.3) {
-            const pair = warpHoles.find(x => x.id === w.pairId);
-            if (pair) {
-              p.x = pair.x;
-              p.y = pair.y;
-              p.warpCooldownUntil = now + 1500;
-              const targetSocket = io.sockets.sockets.get(p.id);
-              if (targetSocket) targetSocket.emit('warped');
-            }
-            break;
-          }
-        }
-      }
-    }
   }
 
   // ===== キングオブザヒル: ヒル上にいる間ポイント加算 =====
@@ -1992,21 +1791,13 @@ setInterval(() => {
     },
     items: items.map(it => ({ id: it.id, type: it.type, x: it.x, y: it.y })),
     itemsEnabled,
-    gimmicksEnabled,
     effectsEnabled,
-    iceEnabled,
-    gravityEnabled,
     knockbackEnabled,
     killcamEnabled,
     titlesEnabled,
     fogEnabled,
     hiddenAreaEnabled,
     themeLock,
-    obstacles,
-    hazardZones,
-    warpHoles,
-    iceZones,
-    gravityWells,
     secretZone,
     kothHill,
     storm,
@@ -2030,16 +1821,9 @@ setInterval(() => {
       itemMaxCount: ITEM_MAX_COUNT,
       itemSpawnIntervalMs: ITEM_SPAWN_INTERVAL_MS,
       enabledItemTypes: Array.from(enabledItemTypes),
-      hazardDamagePerSec,
-      iceSlipperiness,
-      gravityStrengthMultiplier,
       knockbackStrength,
       stormDamagePerSec: STORM_DAMAGE_PER_SEC,
       kothScoreRate: KOTH_SCORE_PER_SEC,
-      obstacleCount,
-      hazardCount,
-      iceCount,
-      gravityCount,
       secretZoneRadius: SECRET_ZONE_RADIUS,
       secretZoneRewardMass: SECRET_ZONE_REWARD_MASS,
       secretZoneCooldownMs: SECRET_ZONE_COOLDOWN_MS,

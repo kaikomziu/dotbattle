@@ -732,46 +732,6 @@ body.theme-light {
   text-align: center;
 }
 
-/* ===== 物語の欠片モーダル(少し不穏で神秘的な雰囲気に) ===== */
-.story-box {
-  background: linear-gradient(160deg, #241221 0%, #170d1e 60%, #0d0812 100%);
-  border: 1px solid rgba(255,80,120,0.35);
-  box-shadow: 0 0 40px rgba(180,30,80,0.25), inset 0 0 30px rgba(0,0,0,0.4);
-}
-.story-progress {
-  font-size: 11px;
-  letter-spacing: 2px;
-  color: #ff88aa;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-.story-box h2 {
-  font-size: 17px;
-  background: linear-gradient(90deg, #ffaacc, #ffe6a8, #ffaacc);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  animation: storyTitleGlow 4s linear infinite;
-  background-size: 200% auto;
-}
-@keyframes storyTitleGlow {
-  to { background-position: 200% center; }
-}
-.story-text {
-  font-size: 13.5px;
-  line-height: 2;
-  color: #e8d8e0;
-  text-align: left;
-  min-height: 90px;
-  white-space: pre-wrap;
-}
-.story-text .cursor {
-  animation: storyBlink 0.8s steps(1) infinite;
-}
-@keyframes storyBlink {
-  50% { opacity: 0; }
-}
-
 .modal-scroll {
   max-height: 60vh;
   overflow-y: auto;

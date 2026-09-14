@@ -62,10 +62,7 @@
   const endRoundBtn = document.getElementById('endRoundBtn');
   const resetRoundBtn = document.getElementById('resetRoundBtn');
   const toggleItemsBtn = document.getElementById('toggleItemsBtn');
-  const toggleGimmicksBtn = document.getElementById('toggleGimmicksBtn');
   const toggleEffectsBtn = document.getElementById('toggleEffectsBtn');
-  const toggleIceBtn = document.getElementById('toggleIceBtn');
-  const toggleGravityBtn = document.getElementById('toggleGravityBtn');
   const toggleKnockbackBtn = document.getElementById('toggleKnockbackBtn');
   const toggleKillcamBtn = document.getElementById('toggleKillcamBtn');
   const toggleTitlesBtn = document.getElementById('toggleTitlesBtn');
@@ -110,18 +107,10 @@
   const paramItemInterval = document.getElementById('paramItemInterval');
   const paramItemApplyBtn = document.getElementById('paramItemApplyBtn');
   const itemTypeToggleRow = document.getElementById('itemTypeToggleRow');
-  const paramHazardDamage = document.getElementById('paramHazardDamage');
-  const paramIceSlip = document.getElementById('paramIceSlip');
-  const paramGravityStrength = document.getElementById('paramGravityStrength');
   const paramKnockbackStrength = document.getElementById('paramKnockbackStrength');
   const paramStormDamage = document.getElementById('paramStormDamage');
   const paramKothRate = document.getElementById('paramKothRate');
   const paramStrengthApplyBtn = document.getElementById('paramStrengthApplyBtn');
-  const paramObstacleCount = document.getElementById('paramObstacleCount');
-  const paramHazardCount = document.getElementById('paramHazardCount');
-  const paramIceCount = document.getElementById('paramIceCount');
-  const paramGravityCount = document.getElementById('paramGravityCount');
-  const paramCountsApplyBtn = document.getElementById('paramCountsApplyBtn');
   const paramSecretZoneRadius = document.getElementById('paramSecretZoneRadius');
   const paramSecretZoneReward = document.getElementById('paramSecretZoneReward');
   const paramSecretZoneCooldown = document.getElementById('paramSecretZoneCooldown');
@@ -240,7 +229,7 @@
   }
 
   const achievementStats = loadJSONCookie('dotbattle_stats', {
-    kills: 0, itemsCollected: 0, boostsUsed: 0, warpsUsed: 0, deaths: 0,
+    kills: 0, itemsCollected: 0, boostsUsed: 0, deaths: 0,
     roundWins: 0, gamesPlayed: 0, playSeconds: 0, itemTypes: {}
   });
   const achievementUnlocked = loadJSONCookie('dotbattle_unlocked', {});
@@ -293,9 +282,6 @@
     { id: 'boost_1', icon: '⚡', title: '初速', desc: 'パワーアップを初めて使う', cat: 'アイテム' },
     { id: 'boost_10', icon: '🚀', title: 'スピードスター', desc: 'パワーアップを10回使用', cat: 'アイテム', progressKey: 'boostsUsed', target: 10 },
     { id: 'boost_30', icon: '💨', title: '光速', desc: 'パワーアップを30回使用', cat: 'アイテム', progressKey: 'boostsUsed', target: 30 },
-    { id: 'warp_1', icon: '🌀', title: '初ワープ', desc: 'ワープホールを初めて使う', cat: 'アイテム' },
-    { id: 'warp_5', icon: '🌌', title: 'ワープマスター', desc: 'ワープホールを5回使用', cat: 'アイテム', progressKey: 'warpsUsed', target: 5 },
-    { id: 'warp_20', icon: '🛸', title: '空間の旅人', desc: 'ワープホールを20回使用', cat: 'アイテム', progressKey: 'warpsUsed', target: 20 },
     { id: 'item_speed', icon: '⚡', title: 'スピード体験', desc: 'スピードアップアイテムを取得', cat: 'アイテム' },
     { id: 'item_shield', icon: '🛡️', title: 'シールド体験', desc: 'シールドアイテムを取得', cat: 'アイテム' },
     { id: 'item_magnet', icon: '🧲', title: 'マグネット体験', desc: 'マグネットアイテムを取得', cat: 'アイテム' },
@@ -341,22 +327,12 @@
     { id: 'hidden_adminname', icon: '🕵️', title: 'なりすまし未遂', desc: '???', hint: '管理者っぽい名前でログインを試みた', cat: '🎭 隠し要素' },
     { id: 'hidden_secretzone', icon: '🏝️', title: '地図にない場所', desc: '???', hint: 'フィールドのどこかにある、誰にも教えられていない隠しエリアを見つけた', cat: '🎭 隠し要素' },
 
-    // --- 物語の欠片(遊び進めるうちに、少しずつ明らかになっていく…) ---
-    { id: 'hidden_story_1', icon: '📖', title: '第一の記憶・目覚め', desc: '???', hint: '初めて食べ物を口にした', cat: '📖 物語の欠片' },
-    { id: 'hidden_story_2', icon: '📗', title: '第二の記憶・成長', desc: '???', hint: 'スコアを1000まで育てた', cat: '📖 物語の欠片' },
-    { id: 'hidden_story_3', icon: '📙', title: '第三の記憶・捕食', desc: '???', hint: '初めて他のプレイヤーを飲み込んだ', cat: '📖 物語の欠片' },
-    { id: 'hidden_story_4', icon: '📘', title: '第四の記憶・試練', desc: '???', hint: '一度も死なずにラウンドを生き延びた', cat: '📖 物語の欠片' },
-    { id: 'hidden_story_5', icon: '📕', title: '第五の記憶・頂点', desc: '???', hint: 'ランキング1位になった', cat: '📖 物語の欠片' },
-    { id: 'hidden_story_6', icon: '📓', title: '終章・真実', desc: '???', hint: 'ヒミツの部屋で最後のログを見つけた', cat: '📖 物語の欠片' },
-    { id: 'hidden_story_true', icon: '🌈', title: '赤い点の真実', desc: '???', hint: '物語の欠片を6つすべて集めた(自分の色が虹色に輝くようになる)', cat: '📖 物語の欠片' },
-
     { id: 'hidden_allsecrets', icon: '🗝️', title: 'すべてを見た者', desc: '???', hint: '隠し要素の実績をすべて解除した', cat: '🎭 隠し要素' }
   ];
   const HIDDEN_SECRET_IDS = [
     'hidden_stats', 'hidden_credits', 'hidden_omikuji', 'hidden_daikichi', 'hidden_retro', 'hidden_tos',
     'hidden_konami', 'hidden_logotap', 'hidden_midnight', 'hidden_namecode', 'hidden_longpress',
-    'hidden_secretroom', 'hidden_emotecombo', 'hidden_minimap', 'hidden_leaderboard', 'hidden_afk', 'hidden_adminname', 'hidden_secretzone',
-    'hidden_story_1', 'hidden_story_2', 'hidden_story_3', 'hidden_story_4', 'hidden_story_5', 'hidden_story_6', 'hidden_story_true'
+    'hidden_secretroom', 'hidden_emotecombo', 'hidden_minimap', 'hidden_leaderboard', 'hidden_afk', 'hidden_adminname', 'hidden_secretzone'
   ];
 
   function unlockAchievement(id) {
@@ -431,16 +407,10 @@
   let lastRoundStateSeen = null; // ラウンド状態の遷移検知用
 
   function checkMassAchievements(mass) {
-    if (mass > 0) {
-      unlockAchievement('first_food');
-      unlockStoryFragment('hidden_story_1');
-    }
+    if (mass > 0) unlockAchievement('first_food');
     if (mass >= 100) unlockAchievement('mass_100');
     if (mass >= 500) unlockAchievement('mass_500');
-    if (mass >= 1000) {
-      unlockAchievement('mass_1000');
-      unlockStoryFragment('hidden_story_2');
-    }
+    if (mass >= 1000) unlockAchievement('mass_1000');
     if (mass >= 2000) unlockAchievement('mass_2000');
     if (mass >= 5000) unlockAchievement('mass_5000');
     if (mass >= 10000) unlockAchievement('mass_10000');
@@ -456,10 +426,7 @@
     const alive = (latestState.players || []).filter(p => p.alive);
     if (alive.length < 2) return;
     const top = alive.reduce((best, p) => (p.mass > best.mass ? p : best), alive[0]);
-    if (top.id === myId && top.mass > 0) {
-      unlockAchievement('rank_1');
-      unlockStoryFragment('hidden_story_5');
-    }
+    if (top.id === myId && top.mass > 0) unlockAchievement('rank_1');
   }
 
   function checkFullLobbyAchievement() {
@@ -473,7 +440,6 @@
     achievementStats.kills = (achievementStats.kills || 0) + 1;
     saveAchievementStats();
     unlockAchievement('first_kill');
-    unlockStoryFragment('hidden_story_3');
     ['kill_5', 'kill_10', 'kill_25', 'kill_50', 'kill_100'].forEach(id => {
       const def = ACHIEVEMENTS.find(a => a.id === id);
       if (def && achievementStats.kills >= def.target) unlockAchievement(id);
@@ -509,13 +475,6 @@
     if (achievementStats.boostsUsed >= 10) unlockAchievement('boost_10');
     if (achievementStats.boostsUsed >= 30) unlockAchievement('boost_30');
   }
-  function registerWarpUsed() {
-    achievementStats.warpsUsed = (achievementStats.warpsUsed || 0) + 1;
-    saveAchievementStats();
-    unlockAchievement('warp_1');
-    if (achievementStats.warpsUsed >= 5) unlockAchievement('warp_5');
-    if (achievementStats.warpsUsed >= 20) unlockAchievement('warp_20');
-  }
   function registerDeath() {
     achievementStats.deaths = (achievementStats.deaths || 0) + 1;
     saveAchievementStats();
@@ -538,10 +497,7 @@
       koth: 'koth_king', battle_royale: 'battle_royale_win'
     };
     if (modeAchievementMap[mode]) unlockAchievement(modeAchievementMap[mode]);
-    if (!diedThisRound) {
-      unlockAchievement('round_survive');
-      unlockStoryFragment('hidden_story_4');
-    }
+    if (!diedThisRound) unlockAchievement('round_survive');
   }
   function registerGamePlayed() {
     achievementStats.gamesPlayed = (achievementStats.gamesPlayed || 0) + 1;
@@ -1008,11 +964,6 @@
         unlockAchievement('hidden_secretroom');
         secretRoomModal.classList.remove('hidden');
         if (settings.particlesEnabled) spawnConfettiAtScreenCenter();
-        // 部屋を開いたら少し間を置いてから、隠されていたログ(物語の最終章)を表示する
-        setTimeout(() => {
-          secretRoomModal.classList.add('hidden');
-          unlockStoryFragment('hidden_story_6');
-        }, 1500);
       }
     });
   }
@@ -1021,96 +972,6 @@
   }
   if (secretRoomModal) {
     secretRoomModal.addEventListener('click', (e) => { if (e.target === secretRoomModal) secretRoomModal.classList.add('hidden'); });
-  }
-
-  // ============================================================
-  // ----- 物語の欠片(遊び進めるうちに少しずつ明らかになる隠しストーリー) -----
-  // 「赤い点」と呼ばれた、かつてこの世界の頂点にいた何者かの記録。
-  // 6つの欠片をすべて集めると、真実が明らかになる。
-  // ============================================================
-  const storyModal = document.getElementById('storyModal');
-  const storyModalProgress = document.getElementById('storyModalProgress');
-  const storyModalTitle = document.getElementById('storyModalTitle');
-  const storyModalText = document.getElementById('storyModalText');
-  const storyModalCloseBtn = document.getElementById('storyModalCloseBtn');
-
-  const STORY_FRAGMENTS = [
-    {
-      id: 'hidden_story_1', order: 1, icon: '📖', title: '第一の記憶・目覚め',
-      text: 'ここは、どこだ。気づけば、ただの小さな点として、この世界に放り出されていた。\n誰もが点として生まれ、点として大きくなり、いつか点として消えていく——そういう掟が、この世界にはあるらしい。'
-    },
-    {
-      id: 'hidden_story_2', order: 2, icon: '📗', title: '第二の記憶・成長',
-      text: '大きくなるほど、世界が良く見えるようになった。\n同時に、大きくなった点ほど、誰かに狙われるようになることも知った。\nかつて、誰よりも大きく育った点がいたという——伝説のように語られる、「赤い点」の噂。'
-    },
-    {
-      id: 'hidden_story_3', order: 3, icon: '📙', title: '第三の記憶・捕食',
-      text: '己より小さな点を飲み込んだとき、妙な感覚があった。\n相手の記憶の欠片が、一瞬だけ流れ込んでくるような——そんな気がしたのだ。\n赤い点は、来る日も来る日もそれを繰り返し、やがて誰も敵わないほどの力を得たという。'
-    },
-    {
-      id: 'hidden_story_4', order: 4, icon: '📘', title: '第四の記憶・試練',
-      text: '一度も倒れることなく、ラウンドを生き延びた。\nこの世界のルールが、少しずつわかってくる気がする。\n赤い点も、幾多のラウンドを生き延びた末に、ついに誰も追いつけない領域へ達したそうだ。ただし——その代償もあったらしい。'
-    },
-    {
-      id: 'hidden_story_5', order: 5, icon: '📕', title: '第五の記憶・頂点',
-      text: 'ランキングの頂点に立ったとき、視界の端を赤い光がよぎった気がした。\nそれは幻だったのか、それとも——かつて頂点に立ち続けた「赤い点」が、まだこの世界のどこかで眠っている証なのか。'
-    },
-    {
-      id: 'hidden_story_6', order: 6, icon: '📓', title: '終章・真実',
-      text: 'ヒミツの部屋に隠されていたのは、小さなログファイルだった。\n\n『わたしは、点として生まれ、点として大きくなり、点としてすべてを飲み込んだ。\nだが最後に残ったのは、ただの寂しさだった。\n次にここへ来る者へ——大きくなることより、誰かと一緒に遊ぶことを、忘れないでほしい。』\n\n——赤い点より'
-    }
-  ];
-  const STORY_TOTAL = STORY_FRAGMENTS.length;
-
-  let storyTypeTimer = null;
-  function playStoryTypewriter(text) {
-    if (storyTypeTimer) clearInterval(storyTypeTimer);
-    storyModalText.innerHTML = '<span class="cursor">▌</span>';
-    let i = 0;
-    storyTypeTimer = setInterval(() => {
-      i++;
-      const shown = text.slice(0, i);
-      storyModalText.innerHTML = escapeHtml(shown).replace(/\n/g, '<br>') + '<span class="cursor">▌</span>';
-      if (i >= text.length) {
-        clearInterval(storyTypeTimer);
-        storyTypeTimer = null;
-      }
-    }, 35);
-  }
-
-  // 物語の欠片を1つ解除する(まだ見つけていなければ、演出付きで表示する)
-  function unlockStoryFragment(fragmentId) {
-    if (achievementUnlocked[fragmentId]) return; // 既に見つけている欠片
-    const frag = STORY_FRAGMENTS.find(f => f.id === fragmentId);
-    if (!frag) return;
-    unlockAchievement(fragmentId);
-    storyModalProgress.textContent = `断片 ${frag.order} / ${STORY_TOTAL}`;
-    storyModalTitle.textContent = `${frag.icon} ${frag.title}`;
-    storyModal.classList.remove('hidden');
-    playStoryTypewriter(frag.text);
-    if (settings.particlesEnabled) spawnConfettiAtScreenCenter();
-
-    // 6つすべて集まったら、真実の実績を解除して特別な演出を付与する
-    const allFound = STORY_FRAGMENTS.every(f => achievementUnlocked[f.id]);
-    if (allFound && !achievementUnlocked['hidden_story_true']) {
-      setTimeout(() => {
-        unlockAchievement('hidden_story_true');
-        storyModalProgress.textContent = '真実';
-        storyModalTitle.textContent = '🌈 赤い点の真実';
-        storyModal.classList.remove('hidden');
-        playStoryTypewriter('すべての記憶が繋がった。\n「赤い点」の正体は、この世界を遊び尽くした、かつての誰かだったのだろう。\nその魂は、今こうしてあなたの色に宿った。\n\n——あなたの点は、これからずっと虹色に輝き続ける。');
-        if (settings.particlesEnabled) spawnConfettiAtScreenCenter();
-      }, 600);
-    }
-  }
-  if (storyModalCloseBtn) {
-    storyModalCloseBtn.addEventListener('click', () => {
-      storyModal.classList.add('hidden');
-      if (storyTypeTimer) { clearInterval(storyTypeTimer); storyTypeTimer = null; }
-    });
-  }
-  if (storyModal) {
-    storyModal.addEventListener('click', (e) => { if (e.target === storyModal) storyModalCloseBtn.click(); });
   }
 
   // ----- 絵文字コンボ(表示順どおりに😂😭😡🔥👍💀を押す) -----
@@ -1440,10 +1301,6 @@
       deathText.textContent = `${data.by} に飲み込まれました…`;
       deathMsg.classList.remove('hidden');
     }
-  });
-
-  socket.on('warped', () => {
-    registerWarpUsed();
   });
 
   socket.on('secretZoneFound', () => {
@@ -2063,10 +1920,7 @@
   // ===== 面白さ強化機能のON/OFFトグル =====
   function updateFeatureToggleButtons() {
     setToggleBtn(toggleItemsBtn, latestState.itemsEnabled, 'アイテム');
-    setToggleBtn(toggleGimmicksBtn, latestState.gimmicksEnabled, 'ギミック');
     setToggleBtn(toggleEffectsBtn, latestState.effectsEnabled, '演出/効果音');
-    setToggleBtn(toggleIceBtn, latestState.iceEnabled, '🧊氷ゾーン');
-    setToggleBtn(toggleGravityBtn, latestState.gravityEnabled, '🌀重力井戸');
     setToggleBtn(toggleKnockbackBtn, latestState.knockbackEnabled, '💥ノックバック');
     setToggleBtn(toggleKillcamBtn, latestState.killcamEnabled, '😈キルカム');
     setToggleBtn(toggleTitlesBtn, latestState.titlesEnabled, '🏅称号表示');
@@ -2091,18 +1945,9 @@
   toggleItemsBtn.addEventListener('click', () => {
     socket.emit('admin:setItemsEnabled', { enabled: !latestState.itemsEnabled });
   });
-  toggleGimmicksBtn.addEventListener('click', () => {
-    socket.emit('admin:setGimmicksEnabled', { enabled: !latestState.gimmicksEnabled });
-  });
   toggleEffectsBtn.addEventListener('click', () => {
     socket.emit('admin:setEffectsEnabled', { enabled: !latestState.effectsEnabled });
   });
-  if (toggleIceBtn) {
-    toggleIceBtn.addEventListener('click', () => socket.emit('admin:setIceEnabled', { enabled: !latestState.iceEnabled }));
-  }
-  if (toggleGravityBtn) {
-    toggleGravityBtn.addEventListener('click', () => socket.emit('admin:setGravityEnabled', { enabled: !latestState.gravityEnabled }));
-  }
   if (toggleKnockbackBtn) {
     toggleKnockbackBtn.addEventListener('click', () => socket.emit('admin:setKnockbackEnabled', { enabled: !latestState.knockbackEnabled }));
   }
@@ -2224,25 +2069,11 @@
   if (paramStrengthApplyBtn) {
     paramStrengthApplyBtn.addEventListener('click', () => {
       socket.emit('admin:setGimmickStrength', {
-        hazardDamage: readNum(paramHazardDamage),
-        iceSlipperiness: readNum(paramIceSlip),
-        gravityStrength: readNum(paramGravityStrength),
         knockbackStrength: readNum(paramKnockbackStrength),
         stormDamage: readNum(paramStormDamage),
         kothScoreRate: readNum(paramKothRate)
       });
-      [paramHazardDamage, paramIceSlip, paramGravityStrength, paramKnockbackStrength, paramStormDamage, paramKothRate].forEach(i => { if (i) i.value = ''; });
-    });
-  }
-  if (paramCountsApplyBtn) {
-    paramCountsApplyBtn.addEventListener('click', () => {
-      socket.emit('admin:setGimmickCounts', {
-        obstacles: readNum(paramObstacleCount),
-        hazards: readNum(paramHazardCount),
-        ice: readNum(paramIceCount),
-        gravity: readNum(paramGravityCount)
-      });
-      [paramObstacleCount, paramHazardCount, paramIceCount, paramGravityCount].forEach(i => { if (i) i.value = ''; });
+      [paramKnockbackStrength, paramStormDamage, paramKothRate].forEach(i => { if (i) i.value = ''; });
     });
   }
   if (paramSecretZoneApplyBtn) {
@@ -2372,16 +2203,9 @@
     if (paramGoldenIntervalMax) paramGoldenIntervalMax.placeholder = p.goldenFoodIntervalMaxMs;
     if (paramItemMaxCount) paramItemMaxCount.placeholder = p.itemMaxCount;
     if (paramItemInterval) paramItemInterval.placeholder = p.itemSpawnIntervalMs;
-    if (paramHazardDamage) paramHazardDamage.placeholder = p.hazardDamagePerSec;
-    if (paramIceSlip) paramIceSlip.placeholder = p.iceSlipperiness;
-    if (paramGravityStrength) paramGravityStrength.placeholder = p.gravityStrengthMultiplier;
     if (paramKnockbackStrength) paramKnockbackStrength.placeholder = p.knockbackStrength;
     if (paramStormDamage) paramStormDamage.placeholder = p.stormDamagePerSec;
     if (paramKothRate) paramKothRate.placeholder = p.kothScoreRate;
-    if (paramObstacleCount) paramObstacleCount.placeholder = p.obstacleCount;
-    if (paramHazardCount) paramHazardCount.placeholder = p.hazardCount;
-    if (paramIceCount) paramIceCount.placeholder = p.iceCount;
-    if (paramGravityCount) paramGravityCount.placeholder = p.gravityCount;
     if (paramSecretZoneRadius) paramSecretZoneRadius.placeholder = p.secretZoneRadius;
     if (paramSecretZoneReward) paramSecretZoneReward.placeholder = p.secretZoneRewardMass;
     if (paramSecretZoneCooldown) paramSecretZoneCooldown.placeholder = p.secretZoneCooldownMs;
@@ -2780,75 +2604,6 @@
     ctx.lineWidth = 4;
     ctx.strokeRect(toX(0), toY(0), worldSize * zoom, worldSize * zoom);
 
-    // ===== マップギミック =====
-    if (latestState.gimmicksEnabled) {
-      // 危険地帯(下敷き)
-      for (const hz of latestState.hazardZones || []) {
-        const x = toX(hz.x), y = toY(hz.y), r = hz.r * zoom;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255,80,40,0.18)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(255,80,40,0.5)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 6]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-      // 障害物
-      for (const ob of latestState.obstacles || []) {
-        const x = toX(ob.x), y = toY(ob.y), r = ob.r * zoom;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = '#4a5468';
-        ctx.fill();
-        ctx.strokeStyle = '#2c3444';
-        ctx.lineWidth = 4;
-        ctx.stroke();
-      }
-      // ワープホール
-      for (const w of latestState.warpHoles || []) {
-        const x = toX(w.x), y = toY(w.y), r = 26 * zoom;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(80,220,255,0.35)';
-        ctx.fill();
-        ctx.strokeStyle = '#33ccff';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-      }
-      // 氷ゾーン(滑る)
-      for (const iz of latestState.iceZones || []) {
-        const x = toX(iz.x), y = toY(iz.y), r = iz.r * zoom;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(140,220,255,0.14)';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(180,235,255,0.55)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([2, 10]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      }
-      // 重力井戸(渦を巻くリングで表現)
-      for (const gw of latestState.gravityWells || []) {
-        const x = toX(gw.x), y = toY(gw.y), r = gw.r * zoom;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(150,80,255,0.07)';
-        ctx.fill();
-        const spin = nowMs / 700;
-        for (let ring = 0; ring < 3; ring++) {
-          const ringR = r * (0.35 + ring * 0.28);
-          ctx.beginPath();
-          ctx.arc(x, y, ringR, spin + ring, spin + ring + Math.PI * 1.4);
-          ctx.strokeStyle = `rgba(180,100,255,${0.45 - ring * 0.1})`;
-          ctx.lineWidth = 2.5;
-          ctx.stroke();
-        }
-      }
-    }
-
     // ===== 隠しエリア(近づくまでほとんど見えない秘密の場所) =====
     if (latestState.hiddenAreaEnabled && latestState.secretZone && me) {
       const sz = latestState.secretZone;
@@ -3058,9 +2813,8 @@
         ctx.fillText('👑', x, y - r * 1.85 - 14);
       }
 
-      // 隠し要素で虹色スキンを獲得した自分には、小さな輝く粒のリングを表示する
-      // (物語をすべて読み終えた「赤い点の真実」、または秘密のコードネーム参加で獲得)
-      if (p.id === myId && (secretRainbowSkin || achievementUnlocked['hidden_story_true'])) {
+      // 隠し要素(秘密のコードネームで参加)で虹色スキンを獲得した自分には、小さな輝く粒のリングを表示する
+      if (p.id === myId && secretRainbowSkin) {
         const hue2 = (nowMs / 6) % 360;
         ctx.save();
         ctx.translate(x, y);
@@ -3364,33 +3118,6 @@
     minimapCtx.lineWidth = 1;
     minimapCtx.strokeRect(toMiniX(camX) - viewW / 2, toMiniY(camY) - viewH / 2, viewW, viewH);
 
-    // ギミック(ざっくり)
-    if (latestState.gimmicksEnabled) {
-      minimapCtx.fillStyle = 'rgba(120,130,150,0.5)';
-      for (const ob of latestState.obstacles || []) {
-        minimapCtx.beginPath();
-        minimapCtx.arc(toMiniX(ob.x), toMiniY(ob.y), Math.max(1.5, ob.r * scale), 0, Math.PI * 2);
-        minimapCtx.fill();
-      }
-      minimapCtx.fillStyle = 'rgba(255,80,40,0.4)';
-      for (const hz of latestState.hazardZones || []) {
-        minimapCtx.beginPath();
-        minimapCtx.arc(toMiniX(hz.x), toMiniY(hz.y), Math.max(1.5, hz.r * scale), 0, Math.PI * 2);
-        minimapCtx.fill();
-      }
-      minimapCtx.fillStyle = 'rgba(140,220,255,0.35)';
-      for (const iz of latestState.iceZones || []) {
-        minimapCtx.beginPath();
-        minimapCtx.arc(toMiniX(iz.x), toMiniY(iz.y), Math.max(1.5, iz.r * scale), 0, Math.PI * 2);
-        minimapCtx.fill();
-      }
-      minimapCtx.fillStyle = 'rgba(180,100,255,0.35)';
-      for (const gw of latestState.gravityWells || []) {
-        minimapCtx.beginPath();
-        minimapCtx.arc(toMiniX(gw.x), toMiniY(gw.y), Math.max(1.5, gw.r * scale), 0, Math.PI * 2);
-        minimapCtx.fill();
-      }
-    }
     // バトルロイヤルの安全地帯
     if (latestState.storm) {
       minimapCtx.strokeStyle = 'rgba(255,60,60,0.8)';
