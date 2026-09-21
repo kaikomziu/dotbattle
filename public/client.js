@@ -1155,7 +1155,9 @@
   });
 
   socket.on('state', (state) => {
-    latestState = state;
+    // 帯域節約のためサーバーはエサ・管理者設定などほぼ不変な項目を間引いて送ってくる。
+    // 全置換ではなくマージにすることで、間引かれたtickでも前回値が保持されるようにする。
+    Object.assign(latestState, state);
     if (typeof state.worldSize === 'number') {
       worldSize = state.worldSize;
     }
@@ -1350,6 +1352,11 @@
 
   socket.on('kicked', () => {
     alert('管理者によってキックされました。');
+    location.reload();
+  });
+
+  socket.on('idleDisconnected', () => {
+    alert('3分間操作がなかったため、接続を解除しました。');
     location.reload();
   });
 

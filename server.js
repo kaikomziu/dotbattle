@@ -29,7 +29,12 @@ if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) 
 }
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*' }
+  cors: { origin: '*' },
+  // 状態ブロードキャストはJSONの繰り返し構造が多く圧縮が効きやすいため、
+  // WebSocket圧縮を有効化して帯域使用量を削減する
+  perMessageDeflate: {
+    threshold: 512 // これより小さいメッセージは圧縮のオーバーヘッドの方が大きいのでそのまま送る
+  }
 });
 
 const PORT = process.env.PORT || 3000;
@@ -721,8 +726,29 @@ function finishRound() {
   }
 }
 
+// 放置(操作なし)接続を自動切断するための最終活動時刻管理。帯域の無駄遣いを防ぐ。
+const socketActivity = new Map(); // socket.id -> 最終活動時刻(ms)
+const IDLE_DISCONNECT_MS = 3 * 60 * 1000; // 3分
+function markActive(socket) {
+  socketActivity.set(socket.id, Date.now());
+}
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, lastActiveAt] of socketActivity) {
+    if (now - lastActiveAt > IDLE_DISCONNECT_MS) {
+      const s = io.sockets.sockets.get(id);
+      if (s) {
+        s.emit('idleDisconnected');
+        s.disconnect(true);
+      }
+      socketActivity.delete(id);
+    }
+  }
+}, 15000);
+
 io.on('connection', (socket) => {
   let player = null;
+  markActive(socket);
 
   // ===== アカウント登録 =====
   socket.on('register', async (data) => {
@@ -841,6 +867,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('join', async (data) => {
+    markActive(socket);
     if (!players.has(socket.id)) {
       if (joinLocked && !isAdmin(socket)) {
         socket.emit('joinRejected', { message: '現在、新規参加はロックされています(管理者が解除するまでお待ちください)' });
@@ -871,6 +898,7 @@ io.on('connection', (socket) => {
 
   // ===== 観戦モード(プレイヤーとしては参加せず状態だけ受信する) =====
   socket.on('spectate', () => {
+    markActive(socket);
     player = null;
     players.delete(socket.id); // 万が一プレイヤーとして参加済みなら退出させる
     socket.emit('welcome', {
@@ -884,6 +912,7 @@ io.on('connection', (socket) => {
   // ===== パワーアップ(自分のスコアを消費して一時的にスピードアップ) =====
   socket.on('useBoost', () => {
     if (!player || !player.alive) return;
+    markActive(socket);
     const now = Date.now();
     if (player.infiniteBoost) {
       // 管理者チートでコスト・クールダウン無視の無限ブーストが有効なプレイヤー
@@ -902,6 +931,7 @@ io.on('connection', (socket) => {
   // ===== 絵文字タウント =====
   socket.on('emote', (data) => {
     if (!player || !player.alive) return;
+    markActive(socket);
     const type = data && data.type;
     if (!EMOTE_TYPES.includes(type)) return;
     const now = Date.now();
@@ -923,6 +953,7 @@ io.on('connection', (socket) => {
     if (!isFinite(dx) || !isFinite(dy)) return;
     player.dirX = dx;
     player.dirY = dy;
+    if (dx !== 0 || dy !== 0) markActive(socket); // 実際に動こうとした時だけ「活動あり」とみなす(0入力の定期送信では放置判定をリセットしない)
   });
 
   // ===== 管理者ログイン =====
@@ -1384,6 +1415,7 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     players.delete(socket.id);
     adminSockets.delete(socket.id);
+    socketActivity.delete(socket.id);
   });
 });
 
@@ -1539,6 +1571,9 @@ function tryBotBoost(bot, now, urgent, chasing) {
 
 // ===== ゲームループ =====
 let lastTick = Date.now();
+let broadcastTick = 0;
+const FOOD_BROADCAST_DIVISOR = 4;  // エサ情報は 20Hz ÷ 4 = 5Hz で送る(帯域節約)
+const SLOW_BROADCAST_DIVISOR = 20; // 管理者設定等ほぼ不変な情報は 20Hz ÷ 20 = 1Hz で送る
 setInterval(() => {
   const now = Date.now();
   const dt = Math.min((now - lastTick) / 1000, 0.1);
@@ -1800,7 +1835,15 @@ setInterval(() => {
     }
   }
 
-  // 状態をブロードキャスト
+  // ===== 状態をブロードキャスト =====
+  // 帯域を節約するため、頻繁に変わるもの(プレイヤー位置等)は毎tick、
+  // ほとんど変わらないもの(エサの配置・管理者設定など)は間引いて送る。
+  // 間引いたtickではキー自体を省略し、クライアント側はObject.assignで
+  // 前回値を保持したまま更新する(latestStateが常に最新の合成状態になる)。
+  broadcastTick++;
+  const includeFoodTier = (broadcastTick % FOOD_BROADCAST_DIVISOR === 0);   // 20Hz ÷ 4 = 5Hz
+  const includeSlowTier = (broadcastTick % SLOW_BROADCAST_DIVISOR === 0);   // 20Hz ÷ 20 = 1Hz
+
   const state = {
     players: Array.from(players.values()).map(p => ({
       id: p.id,
@@ -1829,8 +1872,6 @@ setInterval(() => {
       noclip: !!p.noclip,
       infiniteBoost: !!p.infiniteBoost
     })),
-    food: food.map(f => ({ id: f.id, x: f.x, y: f.y, color: f.color })),
-    foodCount: FOOD_COUNT,
     worldSize: Math.round(WORLD_SIZE),
     gameMode,
     round: {
@@ -1841,21 +1882,31 @@ setInterval(() => {
       resultMessage: roundResultMessage
     },
     items: items.map(it => ({ id: it.id, type: it.type, x: it.x, y: it.y })),
-    itemsEnabled,
-    effectsEnabled,
-    knockbackEnabled,
-    killcamEnabled,
-    titlesEnabled,
-    fogEnabled,
-    hiddenAreaEnabled,
-    themeLock,
-    secretZone,
     kothHill,
     storm,
-    goldenFood: goldenFood ? { x: goldenFood.x, y: goldenFood.y } : null,
-    globalSpeedMultiplier,
-    worldSizeOverride,
-    params: {
+    goldenFood: goldenFood ? { x: goldenFood.x, y: goldenFood.y } : null
+  };
+
+  // エサはほぼ動かないので5Hzで十分(220個 x 20Hz は帯域の大半を占めていた)
+  if (includeFoodTier) {
+    state.food = food.map(f => ({ id: f.id, x: f.x, y: f.y, color: f.color }));
+  }
+
+  // 管理者設定・トグル類は変更した瞬間だけ意味があるので1Hzで十分
+  if (includeSlowTier) {
+    state.foodCount = FOOD_COUNT;
+    state.itemsEnabled = itemsEnabled;
+    state.effectsEnabled = effectsEnabled;
+    state.knockbackEnabled = knockbackEnabled;
+    state.killcamEnabled = killcamEnabled;
+    state.titlesEnabled = titlesEnabled;
+    state.fogEnabled = fogEnabled;
+    state.hiddenAreaEnabled = hiddenAreaEnabled;
+    state.themeLock = themeLock;
+    state.secretZone = secretZone;
+    state.globalSpeedMultiplier = globalSpeedMultiplier;
+    state.worldSizeOverride = worldSizeOverride;
+    state.params = {
       foodGrowth: FOOD_GROWTH,
       maxSpeed: MAX_SPEED,
       respawnInvulnMs: RESPAWN_INVULN_MS,
@@ -1880,8 +1931,9 @@ setInterval(() => {
       secretZoneCooldownMs: SECRET_ZONE_COOLDOWN_MS,
       joinLocked,
       maxPlayers
-    }
-  };
+    };
+  }
+
   io.emit('state', state);
 }, TICK_MS);
 
