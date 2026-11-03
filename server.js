@@ -245,13 +245,20 @@ const KA_URL = 'https://kifnzvktwbomxthzvvgy.supabase.co';
 const KA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtpZm56dmt0d2JvbXh0aHp2dmd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MzgxMzgsImV4cCI6MjA5MzQxNDEzOH0.M7nXP-u--6J_6rRpgz1cJj21_7KX6MtfTmZy77Xf_IE';
 const KA_CACHE_OK_MS = 60 * 1000;   // ログイン確認が成功した結果を覚える時間
 const KA_CACHE_NG_MS = 10 * 1000;   // 失敗した結果を覚える時間(連打対策)
-const kaCache = new Map();          // トークン → { name, until }
+const kaCache = new Map();          // トークン → { name, admin, until }
 
 async function getSessionUsername(token) {
+  const info = await getSessionInfo(token);
+  return info ? info.name : null;
+}
+
+// ログイン確認の結果: { name, admin }。admin はかるわかGAMESアカウントの「管理者」の印
+async function getSessionInfo(token) {
   if (!token || typeof token !== 'string' || token.length < 32 || token.length > 200) return null;
   const hit = kaCache.get(token);
-  if (hit && hit.until > Date.now()) return hit.name;
+  if (hit && hit.until > Date.now()) return hit.name ? { name: hit.name, admin: !!hit.admin } : null;
   let name = null;
+  let admin = false;
   try {
     const res = await fetch(KA_URL + '/rest/v1/rpc/ka_whoami', {
       method: 'POST',
@@ -261,21 +268,24 @@ async function getSessionUsername(token) {
     });
     if (res.ok) {
       const r = await res.json();
-      if (r && r.ok && r.profile && r.profile.display_name) name = String(r.profile.display_name).trim().slice(0, 12) || null;
+      if (r && r.ok && r.profile && r.profile.display_name) {
+        name = String(r.profile.display_name).trim().slice(0, 12) || null;
+        admin = !!(name && r.profile.is_admin === true);
+      }
     } else {
       // 通信エラー時は「失敗」を覚えない(一時的な障害でログアウト扱いにしないため)
-      return hit ? hit.name : null;
+      return hit && hit.name ? { name: hit.name, admin: !!hit.admin } : null;
     }
   } catch (e) {
     console.error('かるわかGAMESアカウントの確認に失敗しました:', e.message);
-    return hit ? hit.name : null;
+    return hit && hit.name ? { name: hit.name, admin: !!hit.admin } : null;
   }
-  kaCache.set(token, { name, until: Date.now() + (name ? KA_CACHE_OK_MS : KA_CACHE_NG_MS) });
+  kaCache.set(token, { name, admin, until: Date.now() + (name ? KA_CACHE_OK_MS : KA_CACHE_NG_MS) });
   if (kaCache.size > 2000) {
     const now = Date.now();
     for (const [t, v] of kaCache) if (v.until < now) kaCache.delete(t);
   }
-  return name;
+  return name ? { name, admin } : null;
 }
 
 // ===== ゲームモード / チーム =====
@@ -332,6 +342,22 @@ const COLORS = [
 const players = new Map();
 /** @type {Set<string>} 管理者になっているsocket.idの集合 */
 const adminSockets = new Set();
+// かるわかGAMESアカウントの「管理者」としてログインしている接続(パスワードのログインとは別に覚える)
+const kaAdminSockets = new Set();
+// ログイン確認の結果に合わせて、管理者の権限を付ける/外す(ログアウトしたら外れる)
+function applyKaAdmin(socket, info) {
+  if (info && info.admin) {
+    if (!adminSockets.has(socket.id)) {
+      adminSockets.add(socket.id);
+      kaAdminSockets.add(socket.id);
+      socket.emit('adminLoginResult', { success: true });
+    }
+  } else if (kaAdminSockets.has(socket.id)) {
+    kaAdminSockets.delete(socket.id);
+    adminSockets.delete(socket.id);
+    socket.emit('adminRevoked');
+  }
+}
 let food = [];
 
 function rand(min, max) {
@@ -725,7 +751,9 @@ io.on('connection', (socket) => {
   // ===== セッション再開(自動ログイン) =====
   socket.on('resumeSession', async (data) => {
     const token = data && data.token;
-    const username = token ? await getSessionUsername(token) : null;
+    const info = token ? await getSessionInfo(token) : null;
+    const username = info ? info.name : null;
+    applyKaAdmin(socket, info);
     if (username) {
       socket.emit('sessionResult', { success: true, username });
     } else {
@@ -746,7 +774,9 @@ io.on('connection', (socket) => {
       }
     }
     const token = data && data.token;
-    const accountUsername = token ? await getSessionUsername(token) : null;
+    const info = token ? await getSessionInfo(token) : null;
+    const accountUsername = info ? info.name : null;
+    applyKaAdmin(socket, info);
     const name = accountUsername || (data && data.name);
     player = new Player(socket.id, name);
     player.accountUsername = accountUsername || null;
@@ -1282,6 +1312,7 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     players.delete(socket.id);
     adminSockets.delete(socket.id);
+    kaAdminSockets.delete(socket.id);
     socketActivity.delete(socket.id);
   });
 });

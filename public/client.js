@@ -539,6 +539,8 @@
     } else {
       accountToken = null;
       showLoggedOutUI();
+      // ログアウトしたことをサーバーにも伝える(かるわかGAMESアカウントの管理者権限を外すため)
+      if (socket.connected) socket.emit('resumeSession', { token: null });
     }
   }
   socket.on('connect', () => {
@@ -1686,6 +1688,14 @@
     } else {
       adminLoginMsg.textContent = res.message || 'ログインに失敗しました';
     }
+  });
+
+  // かるわかGAMESアカウントの管理者がログアウトしたとき、サーバーから管理者権限が外れたと知らされる
+  socket.on('adminRevoked', () => {
+    isAdmin = false;
+    adminGearBtn.classList.remove('is-admin');
+    adminGearBtn.title = '管理者ログイン';
+    updateAdminUIVisibility();
   });
 
   function updateAdminUIVisibility() {
