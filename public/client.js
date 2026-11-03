@@ -139,21 +139,6 @@
   const logoutBtn = document.getElementById('logoutBtn');
   const loginOpenBtn = document.getElementById('loginOpenBtn');
   const registerOpenBtn = document.getElementById('registerOpenBtn');
-  const loginModal = document.getElementById('loginModal');
-  const loginUsernameInput = document.getElementById('loginUsernameInput');
-  const loginPasswordInput = document.getElementById('loginPasswordInput');
-  const loginSubmitBtn = document.getElementById('loginSubmitBtn');
-  const loginCancelBtn = document.getElementById('loginCancelBtn');
-  const loginMsg = document.getElementById('loginMsg');
-  const switchToRegisterLink = document.getElementById('switchToRegisterLink');
-  const registerModal = document.getElementById('registerModal');
-  const registerUsernameInput = document.getElementById('registerUsernameInput');
-  const registerPasswordInput = document.getElementById('registerPasswordInput');
-  const registerPasswordConfirmInput = document.getElementById('registerPasswordConfirmInput');
-  const registerSubmitBtn = document.getElementById('registerSubmitBtn');
-  const registerCancelBtn = document.getElementById('registerCancelBtn');
-  const registerMsg = document.getElementById('registerMsg');
-  const switchToLoginLink = document.getElementById('switchToLoginLink');
   const streakBanner = document.getElementById('streakBanner');
   const killCamLabel = document.getElementById('killCamLabel');
   const winnerBanner = document.getElementById('winnerBanner');
@@ -175,15 +160,6 @@
   const settingParticlesBtn = document.getElementById('settingParticlesBtn');
   const settingMinimapBtn = document.getElementById('settingMinimapBtn');
   const settingFeedBtn = document.getElementById('settingFeedBtn');
-  const accountSettingsLoggedIn = document.getElementById('accountSettingsLoggedIn');
-  const accountSettingsLoggedOut = document.getElementById('accountSettingsLoggedOut');
-  const changeUsernameInput = document.getElementById('changeUsernameInput');
-  const changeUsernameBtn = document.getElementById('changeUsernameBtn');
-  const changeUsernameMsg = document.getElementById('changeUsernameMsg');
-  const currentPasswordInput = document.getElementById('currentPasswordInput');
-  const newPasswordInput = document.getElementById('newPasswordInput');
-  const changePasswordBtn = document.getElementById('changePasswordBtn');
-  const changePasswordMsg = document.getElementById('changePasswordMsg');
 
   const EMOTE_ICONS = {
     laugh: '😂', cry: '😭', angry: '😡', fire: '🔥', thumbsup: '👍', skull: '💀',
@@ -534,21 +510,14 @@
   achievementsModal.addEventListener('click', (e) => { if (e.target === achievementsModal) closeAchievementsModal(); });
 
   // ========================================================
-  // ===== アカウントシステム(登録 / ログイン / ゲスト) =====
+  // ===== アカウント(かるわかGAMESアカウント / ゲスト) =====
   // ========================================================
-  const TOKEN_KEY = 'dotbattle_token';
+  // ログインは、かるわかGAMES共通のアカウント(karuwaka-account.js)に一本化した。
+  // このサーバー(onrender.com)はかるわかGAMES本体とドメインが違うので、ログイン状態はこのサイトの中で別に保存される(初回だけログインが必要)。
+  // サーバーには「かるわかGAMESのセッショントークン」だけを送り、サーバー側で本人確認される。
+  const KA = window.KaAccount || null;
   let accountToken = null;
   let accountUsername = null;
-
-  function getStoredToken() {
-    try { return localStorage.getItem(TOKEN_KEY); } catch (e) { return null; }
-  }
-  function storeToken(token) {
-    try { localStorage.setItem(TOKEN_KEY, token); } catch (e) { /* ストレージ不可時は無視(ゲスト扱い) */ }
-  }
-  function clearStoredToken() {
-    try { localStorage.removeItem(TOKEN_KEY); } catch (e) { /* noop */ }
-  }
 
   function showLoggedInUI(username) {
     accountUsername = username;
@@ -562,118 +531,45 @@
     accountLoggedOutSection.classList.remove('hidden');
   }
 
-  // ページ読み込み時に保存済みトークンがあれば自動ログインを試みる
-  accountToken = getStoredToken();
-  socket.on('connect', () => {
-    if (accountToken) {
-      socket.emit('resumeSession', { token: accountToken });
+  // ログイン状態が変わったら(起動時の確認・ログイン・ログアウト)、サーバーにもトークンを伝えて名前を確認してもらう
+  function syncAccount(profile) {
+    if (profile && KA) {
+      accountToken = KA.token();
+      if (socket.connected) socket.emit('resumeSession', { token: accountToken });
+    } else {
+      accountToken = null;
+      showLoggedOutUI();
     }
+  }
+  socket.on('connect', () => {
+    if (accountToken) socket.emit('resumeSession', { token: accountToken });
   });
   socket.on('sessionResult', (res) => {
     if (res && res.success) {
       showLoggedInUI(res.username);
+      checkAdminLikeName(res.username);
     } else {
+      // サーバーが確認できなかった(期限切れなど)。かるわかGAMES側の状態も見直す
       accountToken = null;
-      clearStoredToken();
       showLoggedOutUI();
     }
   });
-
-  // ----- モーダル開閉 -----
-  function openLoginModal() {
-    loginMsg.textContent = '';
-    loginPasswordInput.value = '';
-    loginModal.classList.remove('hidden');
+  if (KA) {
+    KA.ready.then(syncAccount);
+    KA.onChange(syncAccount);
   }
-  function closeLoginModal() { loginModal.classList.add('hidden'); }
-  function openRegisterModal() {
-    registerMsg.textContent = '';
-    registerPasswordInput.value = '';
-    registerPasswordConfirmInput.value = '';
-    registerModal.classList.remove('hidden');
+
+  function openKaLogin(tab) {
+    if (KA) KA.login(tab);
+    else alert('かるわかGAMESアカウントを読み込めませんでした。通信環境を確認して、ページを読み込み直してください。');
   }
-  function closeRegisterModal() { registerModal.classList.add('hidden'); }
-
-  loginOpenBtn.addEventListener('click', openLoginModal);
-  loginCancelBtn.addEventListener('click', closeLoginModal);
-  loginModal.addEventListener('click', (e) => { if (e.target === loginModal) closeLoginModal(); });
-
-  registerOpenBtn.addEventListener('click', openRegisterModal);
-  registerCancelBtn.addEventListener('click', closeRegisterModal);
-  registerModal.addEventListener('click', (e) => { if (e.target === registerModal) closeRegisterModal(); });
-
-  switchToRegisterLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    closeLoginModal();
-    openRegisterModal();
-  });
-  switchToLoginLink.addEventListener('click', (e) => {
-    e.preventDefault();
-    closeRegisterModal();
-    openLoginModal();
-  });
-
-  // ----- ログイン -----
-  function submitLogin() {
-    const username = loginUsernameInput.value.trim();
-    const password = loginPasswordInput.value;
-    if (!username || !password) {
-      loginMsg.textContent = 'ユーザー名とパスワードを入力してください';
-      return;
-    }
-    checkAdminLikeName(username);
-    socket.emit('login', { username, password });
-  }
-  loginSubmitBtn.addEventListener('click', submitLogin);
-  loginPasswordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitLogin(); });
-  loginUsernameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitLogin(); });
-
-  socket.on('loginResult', (res) => {
-    if (res.success) {
-      accountToken = res.token;
-      storeToken(res.token);
-      showLoggedInUI(res.username);
-      closeLoginModal();
-    } else {
-      loginMsg.textContent = res.message || 'ログインに失敗しました';
-    }
-  });
-
-  // ----- 新規登録 -----
-  function submitRegister() {
-    const username = registerUsernameInput.value.trim();
-    const password = registerPasswordInput.value;
-    const confirm = registerPasswordConfirmInput.value;
-    if (!username || !password) {
-      registerMsg.textContent = 'ユーザー名とパスワードを入力してください';
-      return;
-    }
-    if (password !== confirm) {
-      registerMsg.textContent = 'パスワードが一致しません';
-      return;
-    }
-    checkAdminLikeName(username);
-    socket.emit('register', { username, password });
-  }
-  registerSubmitBtn.addEventListener('click', submitRegister);
-  registerPasswordConfirmInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') submitRegister(); });
-
-  socket.on('registerResult', (res) => {
-    if (res.success) {
-      accountToken = res.token;
-      storeToken(res.token);
-      showLoggedInUI(res.username);
-      closeRegisterModal();
-    } else {
-      registerMsg.textContent = res.message || '登録に失敗しました';
-    }
-  });
+  loginOpenBtn.addEventListener('click', () => openKaLogin('login'));
+  registerOpenBtn.addEventListener('click', () => openKaLogin('register'));
 
   // ----- ログアウト -----
   logoutBtn.addEventListener('click', () => {
-    if (accountToken) socket.emit('logout', { token: accountToken });
+    if (KA) KA.logout(); // → onChange で未ログイン表示になる
     accountToken = null;
-    clearStoredToken();
     showLoggedOutUI();
   });
 
@@ -1030,10 +926,6 @@
 
   function openSettingsModal() {
     refreshSettingsButtons();
-    accountSettingsLoggedIn.classList.toggle('hidden', !accountUsername);
-    accountSettingsLoggedOut.classList.toggle('hidden', !!accountUsername);
-    changeUsernameMsg.textContent = '';
-    changePasswordMsg.textContent = '';
     settingsModal.classList.remove('hidden');
   }
   function closeSettingsModal() { settingsModal.classList.add('hidden'); }
@@ -1041,44 +933,11 @@
   settingsCloseBtn.addEventListener('click', closeSettingsModal);
   settingsModal.addEventListener('click', (e) => { if (e.target === settingsModal) closeSettingsModal(); });
 
-  // ----- アカウント設定: ユーザー名変更 -----
-  changeUsernameBtn.addEventListener('click', () => {
-    const newUsername = changeUsernameInput.value.trim();
-    if (!newUsername) {
-      changeUsernameMsg.textContent = '新しいユーザー名を入力してください';
-      return;
-    }
-    socket.emit('changeUsername', { token: accountToken, newUsername });
-  });
-  socket.on('changeUsernameResult', (res) => {
-    if (res.success) {
-      accountUsername = res.username;
-      accountUsernameDisplay.textContent = res.username;
-      changeUsernameMsg.textContent = '✅ ユーザー名を変更しました';
-      changeUsernameInput.value = '';
-    } else {
-      changeUsernameMsg.textContent = res.message || '変更に失敗しました';
-    }
-  });
-
-  // ----- アカウント設定: パスワード変更 -----
-  changePasswordBtn.addEventListener('click', () => {
-    const currentPassword = currentPasswordInput.value;
-    const newPassword = newPasswordInput.value;
-    if (!currentPassword || !newPassword) {
-      changePasswordMsg.textContent = '現在のパスワードと新しいパスワードを入力してください';
-      return;
-    }
-    socket.emit('changePassword', { token: accountToken, currentPassword, newPassword });
-  });
-  socket.on('changePasswordResult', (res) => {
-    if (res.success) {
-      changePasswordMsg.textContent = '✅ パスワードを変更しました';
-      currentPasswordInput.value = '';
-      newPasswordInput.value = '';
-    } else {
-      changePasswordMsg.textContent = res.message || '変更に失敗しました';
-    }
+  // ----- アカウント設定: かるわかGAMESアカウントの画面を開く -----
+  document.getElementById('accountPanelBtn').addEventListener('click', () => {
+    closeSettingsModal();
+    if (KA) KA.openPanel();
+    else alert('かるわかGAMESアカウントを読み込めませんでした。ページを読み込み直してください。');
   });
 
   // ----- ゲスト名を記憶して次回自動入力 -----

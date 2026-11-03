@@ -89,23 +89,10 @@
 
         <h4 style="margin-top:16px;">🔑 アカウント設定</h4>
 
-        <div id="accountSettingsLoggedIn" class="hidden">
-          <div class="settings-subrow">
-            <input id="changeUsernameInput" type="text" maxlength="16" placeholder="新しいユーザー名" />
-            <button id="changeUsernameBtn">変更</button>
-          </div>
-          <p id="changeUsernameMsg" class="status"></p>
-
-          <div class="settings-subrow">
-            <input id="currentPasswordInput" type="password" placeholder="現在のパスワード" autocomplete="current-password" />
-          </div>
-          <div class="settings-subrow">
-            <input id="newPasswordInput" type="password" placeholder="新しいパスワード (4文字以上)" autocomplete="new-password" />
-            <button id="changePasswordBtn">変更</button>
-          </div>
-          <p id="changePasswordMsg" class="status"></p>
+        <p id="accountSettingsDesc" class="settings-desc">ログインは「かるわかGAMESアカウント」です。表示名・アイコン・パスワードの変更や、アカウントの削除もそちらでできます。</p>
+        <div class="settings-subrow">
+          <button id="accountPanelBtn">👤 かるわかGAMESアカウントを開く</button>
         </div>
-        <p id="accountSettingsLoggedOut" class="settings-desc">ログインするとユーザー名・パスワードを変更できます。</p>
       </div>
       <div class="modal-actions">
         <button id="settingsCloseBtn">閉じる</button>
@@ -137,7 +124,7 @@
         <input id="nameInput" type="text" maxlength="12" placeholder="名前を入力 (省略可)" autocomplete="off" />
         <button id="joinBtn">ゲストとして参加する</button>
         <div class="lobby-subbtn-row">
-          <button id="loginOpenBtn" class="secondary-btn small">🔑 ログイン</button>
+          <button id="loginOpenBtn" class="secondary-btn small">🔑 かるわかGAMESでログイン</button>
           <button id="registerOpenBtn" class="secondary-btn small">📝 新規登録</button>
         </div>
       </div>
@@ -176,37 +163,6 @@
     </div>
   </div>
 
-
-  <!-- ログインモーダル -->
-  <div id="loginModal" class="modal hidden">
-    <div class="modal-box">
-      <h2>🔑 ログイン</h2>
-      <input id="loginUsernameInput" type="text" maxlength="16" placeholder="ユーザー名" autocomplete="username" />
-      <input id="loginPasswordInput" type="password" placeholder="パスワード" autocomplete="current-password" />
-      <div class="modal-actions">
-        <button id="loginSubmitBtn">ログイン</button>
-        <button id="loginCancelBtn" class="secondary">キャンセル</button>
-      </div>
-      <p id="loginMsg" class="status"></p>
-      <p class="modal-switch">アカウントをお持ちでない方は <a href="#" id="switchToRegisterLink">新規登録</a></p>
-    </div>
-  </div>
-
-  <!-- 新規登録モーダル -->
-  <div id="registerModal" class="modal hidden">
-    <div class="modal-box">
-      <h2>📝 新規登録</h2>
-      <input id="registerUsernameInput" type="text" maxlength="16" placeholder="ユーザー名 (2〜16文字)" autocomplete="username" />
-      <input id="registerPasswordInput" type="password" placeholder="パスワード (4文字以上)" autocomplete="new-password" />
-      <input id="registerPasswordConfirmInput" type="password" placeholder="パスワード (確認)" autocomplete="new-password" />
-      <div class="modal-actions">
-        <button id="registerSubmitBtn">登録する</button>
-        <button id="registerCancelBtn" class="secondary">キャンセル</button>
-      </div>
-      <p id="registerMsg" class="status"></p>
-      <p class="modal-switch">すでにアカウントをお持ちの方は <a href="#" id="switchToLoginLink">ログイン</a></p>
-    </div>
-  </div>
 
   <!-- 遊び方モーダル -->
   <div id="helpModal" class="modal hidden">
@@ -624,6 +580,7 @@
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://kaikomziu.github.io/game-links/js/karuwaka-account.js" data-badge="off"></script>
   <script src="client.js"></script>
 </body>
 </html>

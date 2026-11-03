@@ -141,12 +141,9 @@ const USERS_FILE = path.join(__dirname, 'users.json');
 const USERNAME_MIN = 2;
 const USERNAME_MAX = 16;
 const PASSWORD_MIN = 4;
-const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30日間
 
 /** @type {Object<string, {username: string, passwordHash: string, createdAt: number}>} キーは小文字化したユーザー名 */
 let users = {};
-/** @type {Map<string, {username: string, expiresAt: number}>} トークン→セッション情報。Redis未設定時のフォールバック(サーバー再起動でクリアされる) */
-const sessions = new Map();
 
 async function loadUsers() {
   if (redis) {
@@ -238,79 +235,48 @@ function saveGlobalStats() {
   }, 2000);
 }
 
-// セッションはUpstash Redisがあればそちらに保存する(サーバー再起動・Render無料枠の
-// スリープ復帰をまたいでもログインが切れないようにするため)。無ければメモリにフォールバック。
-async function createSession(username) {
-  const token = crypto.randomBytes(24).toString('hex');
-  const expiresAt = Date.now() + SESSION_TTL_MS;
-  if (redis) {
-    try {
-      await redis.set('dotbattle:session:' + token, { username, expiresAt }, { ex: Math.floor(SESSION_TTL_MS / 1000) });
-      return token;
-    } catch (e) {
-      console.error('Redisへのセッション保存に失敗しました:', e.message);
-    }
-  }
-  sessions.set(token, { username, expiresAt });
-  return token;
-}
+// ===== ログイン: かるわかGAMESアカウント =====
+// ログインはかるわかGAMESアカウント(Supabase)に一本化した。クライアントは「かるわかGAMESのセッショントークン」を
+// 送ってくるので、サーバーが Supabase の ka_whoami に問い合わせて本人(表示名)を確かめる。
+// パスワードはこのサーバーには一切届かない。確認結果は短時間だけメモリに覚えて、問い合わせの回数を減らす。
+// (以前のこのゲーム独自のアカウント(users)のデータはRedisにそのまま残してあるが、もう使わない)
+const KA_URL = 'https://kifnzvktwbomxthzvvgy.supabase.co';
+// 公開しても問題ない anon key(かるわかGAMESの他のゲームと共通)
+const KA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtpZm56dmt0d2JvbXh0aHp2dmd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MzgxMzgsImV4cCI6MjA5MzQxNDEzOH0.M7nXP-u--6J_6rRpgz1cJj21_7KX6MtfTmZy77Xf_IE';
+const KA_CACHE_OK_MS = 60 * 1000;   // ログイン確認が成功した結果を覚える時間
+const KA_CACHE_NG_MS = 10 * 1000;   // 失敗した結果を覚える時間(連打対策)
+const kaCache = new Map();          // トークン → { name, until }
+
 async function getSessionUsername(token) {
-  if (!token) return null;
-  if (redis) {
-    try {
-      const s = await redis.get('dotbattle:session:' + token);
-      if (!s || typeof s !== 'object') return null;
-      if (Date.now() > s.expiresAt) return null;
-      return s.username;
-    } catch (e) {
-      console.error('Redisからのセッション読み込みに失敗しました:', e.message);
+  if (!token || typeof token !== 'string' || token.length < 32 || token.length > 200) return null;
+  const hit = kaCache.get(token);
+  if (hit && hit.until > Date.now()) return hit.name;
+  let name = null;
+  try {
+    const res = await fetch(KA_URL + '/rest/v1/rpc/ka_whoami', {
+      method: 'POST',
+      headers: { apikey: KA_KEY, Authorization: 'Bearer ' + KA_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_token: token }),
+      signal: AbortSignal.timeout(5000)
+    });
+    if (res.ok) {
+      const r = await res.json();
+      if (r && r.ok && r.profile && r.profile.display_name) name = String(r.profile.display_name).trim().slice(0, 12) || null;
+    } else {
+      // 通信エラー時は「失敗」を覚えない(一時的な障害でログアウト扱いにしないため)
+      return hit ? hit.name : null;
     }
+  } catch (e) {
+    console.error('かるわかGAMESアカウントの確認に失敗しました:', e.message);
+    return hit ? hit.name : null;
   }
-  const s = sessions.get(token);
-  if (!s) return null;
-  if (Date.now() > s.expiresAt) {
-    sessions.delete(token);
-    return null;
+  kaCache.set(token, { name, until: Date.now() + (name ? KA_CACHE_OK_MS : KA_CACHE_NG_MS) });
+  if (kaCache.size > 2000) {
+    const now = Date.now();
+    for (const [t, v] of kaCache) if (v.until < now) kaCache.delete(t);
   }
-  return s.username;
+  return name;
 }
-async function deleteSession(token) {
-  if (!token) return;
-  if (redis) {
-    try {
-      await redis.del('dotbattle:session:' + token);
-      return;
-    } catch (e) {
-      console.error('Redisからのセッション削除に失敗しました:', e.message);
-    }
-  }
-  sessions.delete(token);
-}
-// ユーザー名変更時、既存セッションの表示名も更新する(再ログインなしで新しい名前を反映するため)
-async function updateSessionUsername(token, newUsername) {
-  if (!token) return;
-  if (redis) {
-    try {
-      const s = await redis.get('dotbattle:session:' + token);
-      if (s && typeof s === 'object') {
-        const ttlSec = Math.max(1, Math.floor((s.expiresAt - Date.now()) / 1000));
-        await redis.set('dotbattle:session:' + token, { username: newUsername, expiresAt: s.expiresAt }, { ex: ttlSec });
-      }
-      return;
-    } catch (e) {
-      console.error('Redisのセッション更新に失敗しました:', e.message);
-    }
-  }
-  const s = sessions.get(token);
-  if (s) s.username = newUsername;
-}
-// 期限切れセッションを定期的に掃除(メモリフォールバック用。Redis側はexで自動期限切れ)
-setInterval(() => {
-  const now = Date.now();
-  for (const [token, s] of sessions) {
-    if (now > s.expiresAt) sessions.delete(token);
-  }
-}, 60 * 60 * 1000);
 
 // ===== ゲームモード / チーム =====
 // 'ffa'(個人戦) | 'team'(チーム戦) | 'infection'(感染鬼ごっこ) | 'koth'(キングオブザヒル) | 'battle_royale'(バトルロイヤル)
@@ -750,44 +716,11 @@ io.on('connection', (socket) => {
   let player = null;
   markActive(socket);
 
-  // ===== アカウント登録 =====
-  socket.on('register', async (data) => {
-    const rawUsername = (data && data.username || '').toString().trim();
-    const password = (data && data.password || '').toString();
-    const key = rawUsername.toLowerCase();
-
-    if (rawUsername.length < USERNAME_MIN || rawUsername.length > USERNAME_MAX) {
-      socket.emit('registerResult', { success: false, message: `ユーザー名は${USERNAME_MIN}〜${USERNAME_MAX}文字にしてください` });
-      return;
-    }
-    if (password.length < PASSWORD_MIN) {
-      socket.emit('registerResult', { success: false, message: `パスワードは${PASSWORD_MIN}文字以上にしてください` });
-      return;
-    }
-    if (users[key]) {
-      socket.emit('registerResult', { success: false, message: 'そのユーザー名は既に使われています' });
-      return;
-    }
-    const passwordHash = bcrypt.hashSync(password, 10);
-    users[key] = { username: rawUsername, passwordHash, createdAt: Date.now() };
-    saveUsers();
-    const token = await createSession(rawUsername);
-    socket.emit('registerResult', { success: true, token, username: rawUsername });
-  });
-
-  // ===== ログイン =====
-  socket.on('login', async (data) => {
-    const rawUsername = (data && data.username || '').toString().trim();
-    const password = (data && data.password || '').toString();
-    const key = rawUsername.toLowerCase();
-    const user = users[key];
-    if (!user || !bcrypt.compareSync(password, user.passwordHash)) {
-      socket.emit('loginResult', { success: false, message: 'ユーザー名またはパスワードが違います' });
-      return;
-    }
-    const token = await createSession(user.username);
-    socket.emit('loginResult', { success: true, token, username: user.username });
-  });
+  // ===== 旧方式のログイン/登録は廃止(かるわかGAMESアカウントに一本化) =====
+  // 古いページを開いたままの人にも分かるよう、案内だけ返す
+  for (const ev of ['register', 'login']) {
+    socket.on(ev, () => socket.emit(ev + 'Result', { success: false, message: 'ログイン方法が変わりました。ページを読み込み直して、「かるわかGAMESアカウント」でログインしてください' }));
+  }
 
   // ===== セッション再開(自動ログイン) =====
   socket.on('resumeSession', async (data) => {
@@ -798,72 +731,6 @@ io.on('connection', (socket) => {
     } else {
       socket.emit('sessionResult', { success: false });
     }
-  });
-
-  socket.on('logout', async (data) => {
-    const token = data && data.token;
-    if (token) await deleteSession(token);
-  });
-
-  // ===== ユーザー名の変更 =====
-  socket.on('changeUsername', async (data) => {
-    const token = data && data.token;
-    const currentUsername = token ? await getSessionUsername(token) : null;
-    if (!currentUsername) {
-      socket.emit('changeUsernameResult', { success: false, message: 'ログインし直してください' });
-      return;
-    }
-    const newUsername = (data && data.newUsername || '').toString().trim();
-    if (newUsername.length < USERNAME_MIN || newUsername.length > USERNAME_MAX) {
-      socket.emit('changeUsernameResult', { success: false, message: `ユーザー名は${USERNAME_MIN}〜${USERNAME_MAX}文字にしてください` });
-      return;
-    }
-    const oldKey = currentUsername.toLowerCase();
-    const newKey = newUsername.toLowerCase();
-    if (newKey !== oldKey && users[newKey]) {
-      socket.emit('changeUsernameResult', { success: false, message: 'そのユーザー名は既に使われています' });
-      return;
-    }
-    const user = users[oldKey];
-    if (!user) {
-      socket.emit('changeUsernameResult', { success: false, message: 'アカウントが見つかりません' });
-      return;
-    }
-    delete users[oldKey];
-    user.username = newUsername;
-    users[newKey] = user;
-    saveUsers();
-    // セッション・現在参加中のプレイヤー名も更新
-    await updateSessionUsername(token, newUsername);
-    if (player && player.accountUsername === currentUsername) {
-      player.accountUsername = newUsername;
-      player.name = newUsername;
-    }
-    socket.emit('changeUsernameResult', { success: true, username: newUsername });
-  });
-
-  // ===== パスワードの変更 =====
-  socket.on('changePassword', async (data) => {
-    const token = data && data.token;
-    const currentUsername = token ? await getSessionUsername(token) : null;
-    if (!currentUsername) {
-      socket.emit('changePasswordResult', { success: false, message: 'ログインし直してください' });
-      return;
-    }
-    const currentPassword = (data && data.currentPassword || '').toString();
-    const newPassword = (data && data.newPassword || '').toString();
-    const user = users[currentUsername.toLowerCase()];
-    if (!user || !bcrypt.compareSync(currentPassword, user.passwordHash)) {
-      socket.emit('changePasswordResult', { success: false, message: '現在のパスワードが違います' });
-      return;
-    }
-    if (newPassword.length < PASSWORD_MIN) {
-      socket.emit('changePasswordResult', { success: false, message: `新しいパスワードは${PASSWORD_MIN}文字以上にしてください` });
-      return;
-    }
-    user.passwordHash = bcrypt.hashSync(newPassword, 10);
-    saveUsers();
-    socket.emit('changePasswordResult', { success: true });
   });
 
   socket.on('join', async (data) => {
